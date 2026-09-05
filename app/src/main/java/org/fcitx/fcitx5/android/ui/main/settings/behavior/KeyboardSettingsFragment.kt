@@ -9,10 +9,17 @@ import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceScreen
+import androidx.preference.SwitchPreferenceCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreferenceFragment
 import org.fcitx.fcitx5.android.input.voice.VoiceInputPreferences
+import org.fcitx.fcitx5.android.input.voice.LocalVoiceModel
+import org.fcitx.fcitx5.android.input.voice.LocalVoiceModelDownloader
 
 class KeyboardSettingsFragment : ManagedPreferenceFragment(AppPrefs.getInstance().keyboard) {
     override fun onPreferenceUiCreated(screen: PreferenceScreen) {
@@ -22,6 +29,41 @@ class KeyboardSettingsFragment : ManagedPreferenceFragment(AppPrefs.getInstance(
             isIconSpaceReserved = false
         }
         screen.addPreference(category)
+        category.addPreference(SwitchPreferenceCompat(context).apply {
+            key = VoiceInputPreferences.PreferLocal
+            title = context.getString(R.string.voice_input_prefer_local)
+            summary = context.getString(R.string.voice_input_prefer_local_summary)
+            setDefaultValue(true)
+            isIconSpaceReserved = false
+        })
+        category.addPreference(Preference(context).apply {
+            title = context.getString(R.string.voice_input_local_model)
+            summary = localModelSummary()
+            isIconSpaceReserved = false
+            setOnPreferenceClickListener {
+                if (!LocalVoiceModel.isReady() && isEnabled) {
+                    isEnabled = false
+                    lifecycleScope.launch {
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                LocalVoiceModelDownloader.download { downloaded, total ->
+                                    val percent = downloaded * 100 / total
+                                    lifecycleScope.launch {
+                                        summary = getString(R.string.voice_input_model_downloading, percent)
+                                    }
+                                }
+                            }
+                        }.onSuccess {
+                            summary = localModelSummary()
+                        }.onFailure {
+                            summary = getString(R.string.voice_input_model_download_failed, it.message)
+                        }
+                        isEnabled = true
+                    }
+                }
+                true
+            }
+        })
         category.addPreference(secretPreference(R.string.voice_input_openai_key, VoiceInputPreferences.OpenAIKey))
         category.addPreference(secretPreference(R.string.voice_input_zhipu_key, VoiceInputPreferences.ZhipuKey))
         category.addPreference(EditTextPreference(context).apply {
@@ -36,6 +78,11 @@ class KeyboardSettingsFragment : ManagedPreferenceFragment(AppPrefs.getInstance(
             }
         })
     }
+
+    private fun localModelSummary() = getString(
+        if (LocalVoiceModel.isReady()) R.string.voice_input_model_ready
+        else R.string.voice_input_model_download
+    )
 
     private fun secretPreference(title: Int, keyValue: String) =
         EditTextPreference(requireContext()).apply {
