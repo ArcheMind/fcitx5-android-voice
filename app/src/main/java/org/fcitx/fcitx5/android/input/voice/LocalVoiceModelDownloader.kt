@@ -11,7 +11,7 @@ import java.net.URL
 
 object LocalVoiceModelDownloader {
     private const val BaseUrl =
-        "https://huggingface.co/taobao-mnn/Qwen2.5-Omni-3B-MNN/resolve/main"
+        "https://huggingface.co/taobao-mnn/Qwen2.5-Omni-3B-MNN/resolve/00dc2e9131a4bb325b43a47f4210dd6450116687"
 
     fun download(onProgress: (downloaded: Long, total: Long) -> Unit) {
         val directory = LocalVoiceModel.directory().also(File::mkdirs)
