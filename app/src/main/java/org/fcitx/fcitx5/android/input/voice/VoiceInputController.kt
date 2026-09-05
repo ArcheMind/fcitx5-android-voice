@@ -32,25 +32,15 @@ class VoiceInputController(
             toast(R.string.voice_input_missing_permission)
             return
         }
-        val localReady = VoiceInputPreferences.preferLocal() && LocalMnnEngine.isReady()
-        val missingKeyMessage = if (localReady) {
-            null
-        } else if (VoiceTranscriptionClient.isCurrentTimeZoneChina()) {
-            R.string.voice_input_missing_zhipu_key.takeIf {
-                VoiceInputPreferences.zhipuKey().isEmpty()
-            }
-        } else {
-            R.string.voice_input_missing_openai_key.takeIf {
-                VoiceInputPreferences.openAIKey().isEmpty()
-            }
+        if (VoiceInputPreferences.preferLocal() && LocalMnnEngine.isReady()) {
+            scope.launch(Dispatchers.IO) {
+                runCatching(LocalMnnEngine::prewarm)
+                    .onFailure { Timber.e(it, "MNN prewarm failed") }
+                }
         }
-        if (missingKeyMessage != null) {
-            toast(missingKeyMessage)
-            return
-        }
+        if (missingRemoteKeyMessage() != null) return
         runCatching {
-            val file = service.cacheDir.resolve("voice-input/current.wav")
-            session = recorder.start(file)
+            session = recorder.start(service.cacheDir.resolve("voice-input/current.wav"))
             toast(R.string.voice_input_listening)
         }.onFailure(::showFailure)
     }
@@ -92,6 +82,19 @@ class VoiceInputController(
     fun cancel() {
         session?.let(recorder::abort)
         session = null
+    }
+
+    private fun missingRemoteKeyMessage(): Int? {
+        if (VoiceInputPreferences.preferLocal() && LocalMnnEngine.isReady()) return null
+        return if (VoiceTranscriptionClient.isCurrentTimeZoneChina()) {
+            R.string.voice_input_missing_zhipu_key.takeIf {
+                VoiceInputPreferences.zhipuKey().isEmpty()
+            }
+        } else {
+            R.string.voice_input_missing_openai_key.takeIf {
+                VoiceInputPreferences.openAIKey().isEmpty()
+            }
+        }
     }
 
     private fun showFailure(error: Throwable) {
