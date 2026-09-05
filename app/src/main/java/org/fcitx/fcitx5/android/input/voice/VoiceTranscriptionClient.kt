@@ -124,15 +124,12 @@ class VoiceTranscriptionClient {
     }
 
     internal fun transcriptionPrompt(precedingText: String, hotwords: List<String>): String = buildString {
-        append("Transcribe the attached audio verbatim. Return only the text to insert, without commentary.")
+        append("Context: ")
         if (precedingText.isNotBlank()) {
-            append("\nText immediately before the cursor:\n")
             append(precedingText.takeLast(MaxContextChars))
         }
-        if (hotwords.isNotEmpty()) {
-            append("\nPrefer these user hotwords when they match the audio:\n")
-            append(hotwords.joinToString(", "))
-        }
+        append("\nHotwords: ")
+        append(hotwords.joinToString(", "))
     }
 
     private fun postJson(endpoint: String, key: String, body: String): String {
