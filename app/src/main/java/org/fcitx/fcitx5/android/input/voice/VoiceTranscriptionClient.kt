@@ -29,6 +29,9 @@ class VoiceTranscriptionClient {
         precedingText: String,
         hotwords: List<String>
     ): String {
+        if (VoiceInputPreferences.preferLocal() && LocalMnnEngine.isReady()) {
+            return LocalMnnEngine.transcribe(audio, precedingText, hotwords)
+        }
         return if (isCurrentTimeZoneChina()) {
             transcribeWithZhipu(audio, precedingText, hotwords)
         } else {
@@ -120,7 +123,7 @@ class VoiceTranscriptionClient {
             ?.jsonPrimitive?.contentOrNull.orEmpty().trim()
     }
 
-    private fun transcriptionPrompt(precedingText: String, hotwords: List<String>): String = buildString {
+    internal fun transcriptionPrompt(precedingText: String, hotwords: List<String>): String = buildString {
         append("Transcribe the attached audio verbatim. Return only the text to insert, without commentary.")
         if (precedingText.isNotBlank()) {
             append("\nText immediately before the cursor:\n")

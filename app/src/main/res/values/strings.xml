@@ -200,6 +200,13 @@
     <string name="space_long_press_behavior">Space key long press behavior</string>
     <string name="space_behavior_voice_input">Voice input</string>
     <string name="voice_input_settings">Voice input</string>
+    <string name="voice_input_prefer_local">Prefer local MNN engine</string>
+    <string name="voice_input_prefer_local_summary">Use Qwen2.5-Omni-3B-MNN when installed, otherwise use the regional remote engine</string>
+    <string name="voice_input_local_model">Qwen2.5-Omni-3B-MNN model</string>
+    <string name="voice_input_model_download">Tap to download 2.55 GiB (Wi-Fi recommended)</string>
+    <string name="voice_input_model_downloading">Downloading local model… %1$d%%</string>
+    <string name="voice_input_model_ready">Installed and ready</string>
+    <string name="voice_input_model_download_failed">Download failed: %1$s (tap to resume)</string>
     <string name="voice_input_openai_key">OpenAI API key</string>
     <string name="voice_input_zhipu_key">Zhipu API key</string>
     <string name="voice_input_hotwords">Hotwords</string>

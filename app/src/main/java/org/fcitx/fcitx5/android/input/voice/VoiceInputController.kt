@@ -32,7 +32,10 @@ class VoiceInputController(
             toast(R.string.voice_input_missing_permission)
             return
         }
-        val missingKeyMessage = if (VoiceTranscriptionClient.isCurrentTimeZoneChina()) {
+        val localReady = VoiceInputPreferences.preferLocal() && LocalMnnEngine.isReady()
+        val missingKeyMessage = if (localReady) {
+            null
+        } else if (VoiceTranscriptionClient.isCurrentTimeZoneChina()) {
             R.string.voice_input_missing_zhipu_key.takeIf {
                 VoiceInputPreferences.zhipuKey().isEmpty()
             }

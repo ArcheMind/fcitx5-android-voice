@@ -56,3 +56,6 @@
 [submodule "plugin/thai/src/main/cpp/fcitx5-libthai"]
 	path = plugin/thai/src/main/cpp/fcitx5-libthai
 	url = https://github.com/fcitx/fcitx5-libthai
+[submodule "third_party/MNN"]
+	path = third_party/MNN
+	url = https://github.com/alibaba/MNN.git
