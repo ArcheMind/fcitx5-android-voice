@@ -32,6 +32,7 @@ import org.fcitx.fcitx5.android.input.keyboard.KeyAction.ShowInputMethodPickerAc
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.SpaceLongPressAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.SymAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.UnicodeAction
+import org.fcitx.fcitx5.android.input.keyboard.KeyAction.VoiceInputEndAction
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.utils.switchToNextIME
@@ -172,6 +173,7 @@ class CommonKeyActionListener :
                 }
                 is SpaceLongPressAction -> {
                     when (spaceKeyLongPressBehavior) {
+                        SpaceLongPressBehavior.VoiceInput -> service.startVoiceInput()
                         SpaceLongPressBehavior.None -> {}
                         SpaceLongPressBehavior.Enumerate -> service.postFcitxJob {
                             enumerateIme()
@@ -182,6 +184,7 @@ class CommonKeyActionListener :
                         SpaceLongPressBehavior.ShowPicker -> showInputMethodPicker()
                     }
                 }
+                is VoiceInputEndAction -> service.finishVoiceInput(action.cancel)
                 else -> {}
             }
         }

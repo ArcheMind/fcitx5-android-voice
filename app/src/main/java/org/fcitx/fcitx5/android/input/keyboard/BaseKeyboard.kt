@@ -59,7 +59,7 @@ abstract class BaseKeyboard(
     private val spaceKeys = mutableListOf<KeyView>()
     private val spaceSwipeChangeListener = ManagedPreference.OnChangeListener<Boolean> { _, v ->
         spaceKeys.forEach {
-            it.swipeEnabled = v
+            it.swipeEnabled = true
         }
     }
 
@@ -71,6 +71,7 @@ abstract class BaseKeyboard(
 
     private val selectionSwipeThreshold = dp(10f)
     private val inputSwipeThreshold = dp(36f)
+    private val voiceCancelThreshold = dp(48f)
 
     // a rather large threshold effectively disables swipe of the direction
     private val disabledSwipeThreshold = dp(800f)
@@ -152,16 +153,22 @@ abstract class BaseKeyboard(
                 else -> InputFeedbacks.SoundEffect.Standard
             }
             if (def is SpaceKey) {
+                var touchStartY = 0f
                 spaceKeys.add(this)
-                swipeEnabled = spaceSwipeMoveCursor.getValue()
+                swipeEnabled = true
                 swipeRepeatEnabled = true
                 swipeThresholdX = selectionSwipeThreshold
-                swipeThresholdY = disabledSwipeThreshold
+                swipeThresholdY = voiceCancelThreshold
                 onGestureListener = OnGestureListener { view, event ->
                     when (event.type) {
-                        GestureType.Move -> when (val count = event.countX) {
-                            0 -> false
-                            else -> {
+                        GestureType.Down -> {
+                            touchStartY = event.y
+                            false
+                        }
+                        GestureType.Move -> {
+                            val cancel = touchStartY - event.y >= voiceCancelThreshold
+                            val count = event.countX
+                            if (count != 0 && spaceSwipeMoveCursor.getValue()) {
                                 val sym =
                                     if (count > 0) FcitxKeyMapping.FcitxKey_Right else FcitxKeyMapping.FcitxKey_Left
                                 val action = KeyAction.SymAction(KeySym(sym), KeyStates.Virtual)
@@ -169,10 +176,17 @@ abstract class BaseKeyboard(
                                     onAction(action)
                                     if (hapticOnRepeat) InputFeedbacks.hapticFeedback(view)
                                 }
-                                true
                             }
+                            cancel || count != 0
                         }
-                        else -> false
+                        GestureType.Up -> {
+                            onAction(
+                                KeyAction.VoiceInputEndAction(
+                                    touchStartY - event.y >= voiceCancelThreshold
+                                )
+                            )
+                            false
+                        }
                     }
                 }
             } else if (def is BackspaceKey) {

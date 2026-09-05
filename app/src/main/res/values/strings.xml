@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Fcitx5</string>
-    <string name="app_name_debug">Fcitx5 (Debug)</string>
+    <string name="app_name_release">Fcitx5 Voice</string>
+    <string name="app_name_debug">Fcitx5 Voice (Debug)</string>
     <string name="save">Save</string>
     <string name="input_methods">Input Methods</string>
     <string name="add_input_method">Add Input Method</string>
@@ -198,6 +198,22 @@
     <string name="notification_permission_title">No Notification Permission</string>
     <string name="toolbar_num_row_on_password">Show number row on toolbar when inputting password</string>
     <string name="space_long_press_behavior">Space key long press behavior</string>
+    <string name="space_behavior_voice_input">Voice input</string>
+    <string name="voice_input_settings">Voice input</string>
+    <string name="voice_input_openai_key">OpenAI API key</string>
+    <string name="voice_input_zhipu_key">Zhipu API key</string>
+    <string name="voice_input_hotwords">Hotwords</string>
+    <string name="voice_input_hotwords_summary">Separate hotwords with commas or new lines</string>
+    <string name="voice_input_key_saved">Saved</string>
+    <string name="voice_input_key_missing">Not configured</string>
+    <string name="voice_input_listening">Listening… swipe up to cancel</string>
+    <string name="voice_input_cancelled">Voice input cancelled</string>
+    <string name="voice_input_processing">Transcribing…</string>
+    <string name="voice_input_missing_permission">Microphone permission is required</string>
+    <string name="voice_input_missing_openai_key">Set the OpenAI API key in Fcitx5 Voice settings</string>
+    <string name="voice_input_missing_zhipu_key">Set the Zhipu API key in Fcitx5 Voice settings</string>
+    <string name="voice_input_failed">Voice input failed: %1$s</string>
+    <string name="voice_input_empty">No speech recognized</string>
     <string name="space_behavior_none">None</string>
     <string name="space_behavior_enumerate">Enumerate input methods</string>
     <string name="space_behavior_activate">Toggle input method activate state</string>

@@ -8,6 +8,7 @@ import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreferenceEnum
 
 enum class SpaceLongPressBehavior(override val stringRes: Int) : ManagedPreferenceEnum {
+    VoiceInput(R.string.space_behavior_voice_input),
     None(R.string.space_behavior_none),
     Enumerate(R.string.space_behavior_enumerate),
     ToggleActivate(R.string.space_behavior_activate),

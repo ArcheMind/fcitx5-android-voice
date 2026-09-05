@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">小企鹅输入法</string>
-    <string name="app_name_debug">小企鹅输入法 (调试)</string>
+    <string name="app_name_release">小企鹅语音输入法</string>
+    <string name="app_name_debug">小企鹅语音输入法 (调试)</string>
     <string name="save">保存</string>
     <string name="input_methods">输入法</string>
     <string name="add_input_method">添加输入法</string>
@@ -198,6 +198,22 @@
     <string name="notification_permission_title">没有通知权限</string>
     <string name="toolbar_num_row_on_password">输入密码时在工具栏上显示数字行</string>
     <string name="space_long_press_behavior">空格键长按行为</string>
+    <string name="space_behavior_voice_input">语音输入</string>
+    <string name="voice_input_settings">语音输入</string>
+    <string name="voice_input_openai_key">OpenAI API 密钥</string>
+    <string name="voice_input_zhipu_key">智谱 API 密钥</string>
+    <string name="voice_input_hotwords">用户热词</string>
+    <string name="voice_input_hotwords_summary">使用逗号或换行分隔热词</string>
+    <string name="voice_input_key_saved">已保存</string>
+    <string name="voice_input_key_missing">未配置</string>
+    <string name="voice_input_listening">正在聆听…上滑取消</string>
+    <string name="voice_input_cancelled">已取消语音输入</string>
+    <string name="voice_input_processing">正在转写…</string>
+    <string name="voice_input_missing_permission">需要麦克风权限</string>
+    <string name="voice_input_missing_openai_key">请在小企鹅语音输入法设置中填写 OpenAI API 密钥</string>
+    <string name="voice_input_missing_zhipu_key">请在小企鹅语音输入法设置中填写智谱 API 密钥</string>
+    <string name="voice_input_failed">语音输入失败：%1$s</string>
+    <string name="voice_input_empty">没有识别到语音</string>
     <string name="space_behavior_none">无</string>
     <string name="space_behavior_enumerate">轮换输入法</string>
     <string name="space_behavior_activate">在当前输入法和第一个输入法之间切换</string>
