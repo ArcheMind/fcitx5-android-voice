@@ -42,7 +42,7 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
             if (!engine) {
                 throw std::runtime_error("MNN could not create the local model");
             }
-            engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"use_mmap":true})");
+            engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"use_mmap":true,"system_prompt":"Speech-to-text only. Output exactly the spoken words and nothing else."})");
             if (!engine->load()) {
                 const auto detail = engine->getLog();
                 engine.reset();
@@ -52,8 +52,8 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
         } else {
             engine->reset();
         }
-        const auto prompt = "<audio>" + fromJString(env, audio_path) + "</audio>" +
-                            fromJString(env, instruction);
+        const auto prompt = fromJString(env, instruction) + "\n<audio>" +
+                            fromJString(env, audio_path) + "</audio>";
         std::ostringstream output;
         engine->response(prompt, &output, "<eop>", 256);
         return env->NewStringUTF(output.str().c_str());

@@ -77,7 +77,8 @@ class VoiceInputController(
                 } finally {
                     audio.delete()
                 }
-            }.onSuccess { text ->
+            }.onSuccess { rawText ->
+                val text = VoiceTranscriptionNormalizer.normalize(rawText)
                 if (text.isBlank()) {
                     toast(R.string.voice_input_empty)
                 } else {
