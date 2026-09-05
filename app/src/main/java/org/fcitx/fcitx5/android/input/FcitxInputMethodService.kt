@@ -65,6 +65,7 @@ import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.input.cursor.CursorRange
 import org.fcitx.fcitx5.android.input.cursor.CursorTracker
+import org.fcitx.fcitx5.android.input.voice.VoiceInputController
 import org.fcitx.fcitx5.android.utils.InputMethodUtil
 import org.fcitx.fcitx5.android.utils.alpha
 import org.fcitx.fcitx5.android.utils.forceShowSelf
@@ -83,6 +84,9 @@ import kotlin.math.max
 class FcitxInputMethodService : LifecycleInputMethodService() {
 
     private lateinit var fcitx: FcitxConnection
+
+    private val voiceInputDelegate = lazy { VoiceInputController(this, lifecycleScope) }
+    private val voiceInput by voiceInputDelegate
 
     private var jobs = Channel<Job>(capacity = Channel.UNLIMITED)
 
@@ -450,6 +454,19 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 commitText(text, 1)
                 setSelection(target, target)
             }
+        }
+    }
+
+    fun getTextBeforeCursor(): String =
+        currentInputConnection?.getTextBeforeCursor(8_000, 0)?.toString().orEmpty()
+
+    fun startVoiceInput() {
+        voiceInput.start()
+    }
+
+    fun finishVoiceInput(cancel: Boolean) {
+        if (voiceInputDelegate.isInitialized()) {
+            voiceInput.finish(cancel)
         }
     }
 
@@ -1084,6 +1101,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onDestroy() {
+        if (voiceInputDelegate.isInitialized()) {
+            voiceInput.cancel()
+        }
         recreateInputViewPrefs.forEach {
             it.unregisterOnChangeListener(recreateInputViewListener)
         }

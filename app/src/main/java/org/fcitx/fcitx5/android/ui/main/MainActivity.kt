@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         processIntent(intent)
-        checkNotificationPermission()
+        checkMicrophonePermission()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -119,6 +119,14 @@ class MainActivity : AppCompatActivity() {
 
     private var needNotifications by AppPrefs.getInstance().internal.needNotifications
 
+    private fun checkMicrophonePermission() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            checkNotificationPermission()
+        } else {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_MICROPHONE)
+        }
+    }
+
     private fun checkNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
@@ -138,7 +146,10 @@ class MainActivity : AppCompatActivity() {
                     needNotifications = false
                 }
                 .setPositiveButton(R.string.grant_permission) { _, _ ->
-                    requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
+                    requestPermissions(
+                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                        REQUEST_NOTIFICATION
+                    )
                 }
                 .show()
         }
@@ -150,7 +161,11 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode != 0) return
+        if (requestCode == REQUEST_MICROPHONE) {
+            checkNotificationPermission()
+            return
+        }
+        if (requestCode != REQUEST_NOTIFICATION) return
         // do not ask again if user denied the request
         needNotifications = grantResults.getOrNull(0) == PackageManager.PERMISSION_GRANTED
     }
@@ -163,6 +178,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val REQUEST_NOTIFICATION = 0
+        private const val REQUEST_MICROPHONE = 1
         const val EXTRA_SETTINGS_ROUTE = "${BuildConfig.APPLICATION_ID}.EXTRA_SETTINGS_ROUTE"
     }
 
