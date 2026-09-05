@@ -29,6 +29,32 @@ void throwIllegalState(JNIEnv* env, const std::string& message) {
     auto clazz = env->FindClass("java/lang/IllegalStateException");
     env->ThrowNew(clazz, message.c_str());
 }
+
+void ensureLoaded(const std::string& config) {
+    if (engine && loaded_config == config) return;
+    engine.reset(Llm::createLLM(config));
+    if (!engine) {
+        throw std::runtime_error("MNN could not create the local model");
+    }
+    engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"use_mmap":true,"system_prompt":"Speech-to-text only. Output exactly the spoken words and nothing else."})");
+    if (!engine->load()) {
+        const auto detail = engine->getLog();
+        engine.reset();
+        throw std::runtime_error("MNN model load failed: " + detail);
+    }
+    loaded_config = config;
+}
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_prewarmNative(
+        JNIEnv* env, jobject, jstring config_path) {
+    try {
+        std::lock_guard<std::mutex> lock(engine_mutex);
+        ensureLoaded(fromJString(env, config_path));
+    } catch (const std::exception& error) {
+        throwIllegalState(env, error.what());
+    }
 }
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -37,21 +63,9 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
     try {
         std::lock_guard<std::mutex> lock(engine_mutex);
         const auto config = fromJString(env, config_path);
-        if (!engine || loaded_config != config) {
-            engine.reset(Llm::createLLM(config));
-            if (!engine) {
-                throw std::runtime_error("MNN could not create the local model");
-            }
-            engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"use_mmap":true,"system_prompt":"Speech-to-text only. Output exactly the spoken words and nothing else."})");
-            if (!engine->load()) {
-                const auto detail = engine->getLog();
-                engine.reset();
-                throw std::runtime_error("MNN model load failed: " + detail);
-            }
-            loaded_config = config;
-        } else {
-            engine->reset();
-        }
+        const bool already_loaded = engine && loaded_config == config;
+        ensureLoaded(config);
+        if (already_loaded) engine->reset();
         const auto prompt = fromJString(env, instruction) + "\n<audio>" +
                             fromJString(env, audio_path) + "</audio>";
         std::ostringstream output;

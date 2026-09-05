@@ -9,6 +9,13 @@ import java.io.File
 object LocalMnnEngine {
     fun isReady() = LocalVoiceModel.isReady()
 
+    fun prewarm() {
+        check(isReady()) { "The local MNN model is not installed" }
+        Timber.d("MNN prewarm request: config=%s", LocalVoiceModel.configFile().absolutePath)
+        prewarmNative(LocalVoiceModel.configFile().absolutePath)
+        Timber.d("MNN prewarm response: ready")
+    }
+
     fun transcribe(audio: File, precedingText: String, hotwords: List<String>): String {
         check(isReady()) { "The local MNN model is not installed" }
         val instruction = VoiceTranscriptionClient().transcriptionPrompt(precedingText, hotwords)
@@ -36,6 +43,8 @@ object LocalMnnEngine {
         audioPath: String,
         instruction: String
     ): String
+
+    private external fun prewarmNative(configPath: String)
 }
 
 object LocalVoiceModel {
