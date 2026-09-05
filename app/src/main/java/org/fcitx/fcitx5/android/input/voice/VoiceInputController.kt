@@ -7,22 +7,41 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.input.FcitxInputMethodService
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
 
 class VoiceInputController(
     private val service: FcitxInputMethodService,
     private val scope: CoroutineScope
 ) {
+    private data class ActiveSession(
+        val generation: Long,
+        val recording: WavRecorder.Session,
+        val worker: Job,
+        val committed: AtomicBoolean
+    )
+
     private val recorder = WavRecorder(scope)
     private val client = VoiceTranscriptionClient()
-    private var session: WavRecorder.Session? = null
+    private var session: ActiveSession? = null
+    private var generation = 0L
     private var processing = false
+
+    init {
+        scope.launch(Dispatchers.IO) {
+            runCatching(recorder::prewarm)
+                .onFailure { Timber.e(it, "Silero VAD prewarm failed") }
+        }
+    }
 
     fun start() {
         if (session != null || processing) return
@@ -36,11 +55,17 @@ class VoiceInputController(
             scope.launch(Dispatchers.IO) {
                 runCatching(LocalMnnEngine::prewarm)
                     .onFailure { Timber.e(it, "MNN prewarm failed") }
-                }
+            }
         }
         if (missingRemoteKeyMessage() != null) return
+
+        val currentGeneration = ++generation
         runCatching {
-            session = recorder.start(service.cacheDir.resolve("voice-input/current.wav"))
+            val directory = service.cacheDir.resolve("voice-input/session-$currentGeneration")
+            val recording = recorder.start(directory)
+            val committed = AtomicBoolean(false)
+            val worker = startWorker(currentGeneration, recording, committed)
+            session = ActiveSession(currentGeneration, recording, worker, committed)
             toast(R.string.voice_input_listening)
         }.onFailure(::showFailure)
     }
@@ -49,39 +74,79 @@ class VoiceInputController(
         val active = session ?: return
         session = null
         if (cancel) {
-            recorder.abort(active)
+            cancel(active)
             toast(R.string.voice_input_cancelled)
             return
         }
+
         processing = true
         toast(R.string.voice_input_processing)
-        val precedingText = service.getTextBeforeCursor()
-        val hotwords = VoiceInputPreferences.hotwords()
         scope.launch {
             runCatching {
-                val audio = withContext(Dispatchers.IO) { recorder.stop(active) }
-                try {
-                    withContext(Dispatchers.IO) {
-                        client.transcribe(audio, precedingText, hotwords)
-                    }
-                } finally {
-                    audio.delete()
+                withContext(Dispatchers.IO) { recorder.stop(active.recording) }
+                active.worker.join()
+            }.onFailure { failure ->
+                if (failure !is CancellationException && active.generation == generation) {
+                    showFailure(failure)
                 }
-            }.onSuccess { rawText ->
-                val text = VoiceTranscriptionNormalizer.normalize(rawText)
-                if (text.isBlank()) {
-                    toast(R.string.voice_input_empty)
-                } else {
-                    service.commitText(text)
-                }
-            }.onFailure(::showFailure)
+            }
+            if (active.generation == generation && !active.committed.get()) {
+                toast(R.string.voice_input_empty)
+            }
+            withContext(Dispatchers.IO) { active.recording.directory.delete() }
             processing = false
         }
     }
 
     fun cancel() {
-        session?.let(recorder::abort)
+        val active = session ?: return
         session = null
+        cancel(active)
+    }
+
+    private fun startWorker(
+        currentGeneration: Long,
+        recording: WavRecorder.Session,
+        committed: AtomicBoolean
+    ) = scope.launch {
+        var precedingText = service.getTextBeforeCursor()
+        try {
+            for (audio in recording.segments) {
+                try {
+                    val rawText = withContext(Dispatchers.IO) {
+                        client.transcribe(audio, precedingText, VoiceInputPreferences.hotwords())
+                    }
+                    val text = VoiceTranscriptionNormalizer.normalize(rawText)
+                    if (currentGeneration == generation && text.isNotBlank()) {
+                        service.commitText(text)
+                        precedingText += text
+                        committed.set(true)
+                        Timber.d("Voice segment committed: file=%s text=%s", audio.absolutePath, text)
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Throwable) {
+                    if (currentGeneration == generation) showFailure(failure)
+                } finally {
+                    withContext(NonCancellable + Dispatchers.IO) { audio.delete() }
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            if (currentGeneration == generation) showFailure(failure)
+        }
+    }
+
+    private fun cancel(active: ActiveSession) {
+        processing = true
+        ++generation
+        recorder.abort(active.recording)
+        active.worker.cancel()
+        scope.launch {
+            active.recording.writer.join()
+            processing = false
+        }
     }
 
     private fun missingRemoteKeyMessage(): Int? {
