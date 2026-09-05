@@ -17,7 +17,8 @@ configured hotwords.
 
 Local inference is enabled by default when the model is installed. Tap the local
 model entry in Voice input settings to resume-download the 2.55 GiB input-only
-subset of `taobao-mnn/Qwen2.5-Omni-3B-MNN`. MNN receives the original WAV in an
+subset of `taobao-mnn/Qwen2.5-Omni-3B-MNN`, pinned to model revision
+`00dc2e9131a4bb325b43a47f4210dd6450116687`. MNN receives the original WAV in an
 `<audio>` prompt together with the same editor context and hotwords. If the model
 is absent, the app falls back to the regional remote provider.
 
