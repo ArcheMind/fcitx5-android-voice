@@ -71,7 +71,7 @@ public:
         auto sample_rate = MNN::Express::_Const(
             &sample_rate_, sample_rate_shape, MNN::Express::NCHW, halide_type_of<int>());
         auto outputs = module_->onForward({input, state_, sample_rate});
-        if (outputs.size() != 2 || !outputs[0] || !outputs[1]) {
+        if (outputs.size() != 2 || outputs[0].get() == nullptr || outputs[1].get() == nullptr) {
             throw std::runtime_error("Silero VAD inference failed");
         }
         state_ = outputs[1];
