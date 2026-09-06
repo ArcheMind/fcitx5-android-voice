@@ -16,9 +16,20 @@ object LocalMnnEngine {
         Timber.d("MNN prewarm response: ready")
     }
 
-    fun transcribe(audio: File, precedingText: String, hotwords: List<String>): String {
+    fun transcribe(
+        audio: File,
+        precedingText: String,
+        hotwords: List<String>,
+        hasPreviousChunk: Boolean
+    ): String {
         check(isReady()) { "The local MNN model is not installed" }
-        val instruction = VoiceTranscriptionClient().transcriptionPrompt(precedingText, hotwords)
+        val instruction = buildString {
+            append(VoiceTranscriptionClient().transcriptionPrompt(precedingText, hotwords))
+            append("\nTranscribe only the current audio. Output transcription only; never repeat or discuss Context or Hotwords.")
+            if (hasPreviousChunk) {
+                append("\nIf a sentence boundary is needed after Context and its punctuation is missing, begin with that punctuation; never duplicate existing punctuation.")
+            }
+        }
         Timber.d(
             "MNN request: config=%s audio=%s prompt=%s",
             LocalVoiceModel.configFile().absolutePath,
