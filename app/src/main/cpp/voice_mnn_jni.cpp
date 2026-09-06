@@ -36,7 +36,7 @@ void ensureLoaded(const std::string& config) {
     if (!engine) {
         throw std::runtime_error("MNN could not create the local model");
     }
-    engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"use_mmap":true,"system_prompt":"Speech-to-text only. Output exactly the spoken words and nothing else."})");
+    engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"use_mmap":true,"system_prompt":"Speech-to-text only. Transcribe the spoken words faithfully and add natural punctuation. Output the transcription and nothing else."})");
     if (!engine->load()) {
         const auto detail = engine->getLog();
         engine.reset();
