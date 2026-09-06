@@ -110,16 +110,23 @@ class VoiceInputController(
         committed: AtomicBoolean
     ) = scope.launch {
         var precedingText = service.getTextBeforeCursor()
+        var hasPreviousChunk = false
         try {
             for (audio in recording.segments) {
                 try {
                     val rawText = withContext(Dispatchers.IO) {
-                        client.transcribe(audio, precedingText, VoiceInputPreferences.hotwords())
+                        client.transcribe(
+                            audio,
+                            precedingText,
+                            VoiceInputPreferences.hotwords(),
+                            hasPreviousChunk
+                        )
                     }
                     val text = VoiceTranscriptionNormalizer.normalize(rawText)
                     if (currentGeneration == generation && text.isNotBlank()) {
                         service.commitText(text)
                         precedingText += text
+                        hasPreviousChunk = true
                         committed.set(true)
                         Timber.d("Voice segment committed: file=%s text=%s", audio.absolutePath, text)
                     }
