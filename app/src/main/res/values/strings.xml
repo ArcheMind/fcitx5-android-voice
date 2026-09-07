@@ -221,6 +221,12 @@
     <string name="voice_input_missing_zhipu_key">Set the Zhipu API key in Fcitx5 Voice settings</string>
     <string name="voice_input_failed">Voice input failed: %1$s</string>
     <string name="voice_input_empty">No speech recognized</string>
+    <string name="voice_input_keep_model_ready">Keep local voice model ready</string>
+    <string name="voice_input_keep_model_ready_summary">Raise process priority while idle to retain the loaded model in memory</string>
+    <string name="voice_input_keep_model_ready_unavailable">Install the local model and enable local engine first</string>
+    <string name="voice_input_model_notification_channel">Voice model retention</string>
+    <string name="voice_input_model_keeping_ready">Keeping local voice model ready for low-latency input</string>
+    <string name="voice_input_release_model">Release model</string>
     <string name="space_behavior_none">None</string>
     <string name="space_behavior_enumerate">Enumerate input methods</string>
     <string name="space_behavior_activate">Toggle input method activate state</string>
