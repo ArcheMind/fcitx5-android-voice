@@ -28,10 +28,11 @@ class VoiceTranscriptionClient {
         audio: File,
         precedingText: String,
         hotwords: List<String>,
-        hasPreviousChunk: Boolean
+        hasPreviousChunk: Boolean,
+        onPartial: (String) -> Unit
     ): String {
         if (VoiceInputPreferences.preferLocal() && LocalMnnEngine.isReady()) {
-            return LocalMnnEngine.transcribe(audio, precedingText, hotwords, hasPreviousChunk)
+            return LocalMnnEngine.transcribe(audio, precedingText, hotwords, hasPreviousChunk, onPartial)
         }
         return if (isCurrentTimeZoneChina()) {
             transcribeWithZhipu(audio, precedingText, hotwords)
