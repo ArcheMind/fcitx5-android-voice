@@ -410,8 +410,9 @@ class ImageTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.ImageT
     }
 
     init {
+        val imageSize = if (def.viewId == R.id.button_space) dp(24) else dp(13)
         appearanceView.apply {
-            add(img, lParams(dp(13), dp(13)))
+            add(img, lParams(imageSize, imageSize))
         }
         if (def.viewId == R.id.button_space) {
             mainText.updateLayoutParams<ConstraintLayout.LayoutParams> {
