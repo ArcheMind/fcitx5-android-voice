@@ -460,6 +460,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     fun getTextBeforeCursor(): String =
         currentInputConnection?.getTextBeforeCursor(8_000, 0)?.toString().orEmpty()
 
+    fun previewVoiceText(text: String) {
+        updateComposingText(
+            if (text.isEmpty()) FormattedText.Empty
+            else FormattedText(arrayOf(text), intArrayOf(0), text.length)
+        )
+    }
+
     fun startVoiceInput() {
         voiceInput.start()
     }
@@ -742,6 +749,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
+        if (voiceInputDelegate.isInitialized()) voiceInput.cancel(clearPreview = false)
         // update selection as soon as possible
         // sometimes when restarting input, onUpdateSelection happens before onStartInput, and
         // initialSel{Start,End} is outdated. but it's the client app's responsibility to send
@@ -1066,6 +1074,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     override fun onFinishInputView(finishingInput: Boolean) {
         Timber.d("onFinishInputView: finishingInput=$finishingInput")
+        if (voiceInputDelegate.isInitialized()) voiceInput.cancel()
         decorLocationUpdated = false
         inputDeviceMgr.onFinishInputView()
         currentInputConnection?.apply {
@@ -1082,6 +1091,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     override fun onFinishInput() {
         Timber.d("onFinishInput")
+        if (voiceInputDelegate.isInitialized()) voiceInput.cancel()
         postFcitxJob {
             focus(false)
         }
