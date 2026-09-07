@@ -19,6 +19,7 @@ add_subdirectory("${MNN_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/mnn")
 add_executable(macos_voice_prompt_lab main.cpp)
 target_compile_features(macos_voice_prompt_lab PRIVATE cxx_std_17)
 target_include_directories(macos_voice_prompt_lab PRIVATE
+    "${MNN_SOURCE_DIR}/include"
     "${MNN_SOURCE_DIR}/transformers/llm/engine/include"
     "${MNN_SOURCE_DIR}/3rd_party"
 )

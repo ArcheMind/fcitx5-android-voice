@@ -1,0 +1,26 @@
+{
+  "model_dir": "/replace/with/Qwen2.5-Omni-3B-MNN",
+  "repetitions": 3,
+  "prompts": [
+    {
+      "id": "few-shot-en-labels",
+      "system_prompt_template": "Transcribe audio exactly. Example: \"What is one plus one?\" -> \"What is one plus one?\". Example: \"一加一等于几？\" -> \"一加一等于几？\". Output only the spoken words.",
+      "context_template": "Context: {context}",
+      "audio_template": "Audio: <audio>{audio}</audio>"
+    },
+    {
+      "id": "few-shot-zh-labels",
+      "system_prompt_template": "逐字转写音频。示例：\"一加一等于几？\" → \"一加一等于几？\"。示例：\"What is one plus one?\" → \"What is one plus one?\"。只输出听到的话。",
+      "context_template": "上下文：{context}",
+      "audio_template": "音频：<audio>{audio}</audio>"
+    }
+  ],
+  "cases": [
+    {"id": "zh-question", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-question.wav", "expected": "一加一等于几？"}]},
+    {"id": "zh-statement", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-statement.wav", "expected": "今天天气真好。"}]},
+    {"id": "zh-command", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-command.wav", "expected": "明天上午十点提醒我开会。"}]},
+    {"id": "en-question", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-question.wav", "expected": "What is one plus one?"}]},
+    {"id": "en-statement", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-statement.wav", "expected": "The weather is beautiful today."}]},
+    {"id": "en-command", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-command.wav", "expected": "Remind me to join the meeting at ten tomorrow morning."}]}
+  ]
+}
