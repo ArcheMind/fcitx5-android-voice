@@ -28,7 +28,6 @@ object LocalMnnEngine {
         check(isReady()) { "The local MNN model is not installed" }
         val instruction = buildString {
             append(VoiceTranscriptionClient().transcriptionPrompt(precedingText, hotwords))
-            append("\nTranscribe only the current audio. Output transcription only; never repeat or discuss Context or Hotwords.")
             if (hasPreviousChunk) {
                 append("\nIf a sentence boundary is needed after Context and its punctuation is missing, begin with that punctuation; never duplicate existing punctuation.")
             }

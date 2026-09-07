@@ -67,12 +67,19 @@ void ensureLoaded(const std::string& config) {
     if (!engine) {
         throw std::runtime_error("MNN could not create the local model");
     }
-    engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"use_mmap":true,"system_prompt":"Speech-to-text only. Output exactly the spoken words and nothing else. Include natural punctuation."})");
+    engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"reuse_kv":true,"use_mmap":true,"system_prompt":"Speech-to-text only. Output exactly the spoken words and nothing else. Include natural punctuation. Transcribe only the current audio. Output transcription only; never repeat or discuss Context or Hotwords."})");
     if (!engine->load()) {
         const auto detail = engine->getLog();
         engine.reset();
         throw std::runtime_error("MNN model load failed: " + detail);
     }
+    if (!engine->prefillFixedPrompt()) {
+        const auto detail = engine->getLog();
+        engine.reset();
+        throw std::runtime_error("MNN fixed prompt prefill failed: " + detail);
+    }
+    __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN fixed prefix ready: tokens=%zu",
+                        engine->getCurrentHistory());
     loaded_config = config;
 }
 }
@@ -99,9 +106,7 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
         if (!method) return nullptr;
         std::lock_guard<std::mutex> lock(engine_mutex);
         const auto config = fromJString(env, config_path);
-        const bool already_loaded = engine && loaded_config == config;
         ensureLoaded(config);
-        if (already_loaded) engine->reset();
         const auto prompt = fromJString(env, instruction) + "\n<audio>" +
                             fromJString(env, audio_path) + "</audio>";
         StreamingBuffer buffer(env, callback, method);
