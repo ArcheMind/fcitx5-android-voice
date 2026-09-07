@@ -140,10 +140,12 @@ class PopupComponent :
             }
             elevation = context.dp(2f)
         }
-        root.add(indicator, lParams(cancelIndicatorSize, cancelIndicatorSize) {
-            leftMargin = (bounds.left + bounds.right - cancelIndicatorSize) / 2
-            topMargin = bounds.top - cancelIndicatorSize - context.dp(8)
-        })
+        root.apply {
+            add(indicator, lParams(cancelIndicatorSize, cancelIndicatorSize) {
+                leftMargin = (bounds.left + bounds.right - cancelIndicatorSize) / 2
+                topMargin = bounds.top - cancelIndicatorSize - context.dp(8)
+            })
+        }
         showingCancelIndicators[viewId] = indicator
     }
 
