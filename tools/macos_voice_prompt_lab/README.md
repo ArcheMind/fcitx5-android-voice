@@ -36,6 +36,11 @@ The runner evaluates every prompt variant against every case. A case can carry
 multiple segments; those segments run as one MNN chat session, matching the
 Android multi-segment history rule.
 
+Set the optional top-level `repetitions` to run each case in independent chat
+sessions repeatedly. Every JSONL record includes its one-based `repetition`,
+so output stability is measurable without mixing session history between
+attempts.
+
 Each JSON Lines result preserves the prompt/case IDs, fully rendered messages,
 WAV path, reference text, raw generation, normalized text, any MNN error,
 wall-clock duration, and MNN audio/prefill/decode/TTFA timings. The runner logs
@@ -55,3 +60,14 @@ the tool can collect exploratory runs before reference labels exist. The two
 example baseline variants exactly represent Android's English and Chinese
 Context/Audio message labels; select only the applicable one when comparing a
 single language.
+
+## Synthetic first-pass fixtures
+
+Run `generate_synthetic_fixtures.sh` to create six deterministic 16 kHz WAV
+files using macOS voices: Chinese and English question, statement, and command
+utterances. Then run `synthetic-prompt-experiment.json`, supplying the model
+directory as the third argument. Its matrix preserves Android's two baseline
+label modes and compares three short philosophies: identity, explicit
+boundaries, and sentence-boundary contrast. It repeats each prompt/case pair
+three times. Synthetic speech is for controlled screening only; validate a
+winning prompt with recorded phone speech before changing Android behavior.

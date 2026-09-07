@@ -1,0 +1,22 @@
+{
+  "model_dir": "/replace/with/Qwen2.5-Omni-3B-MNN",
+  "repetitions": 3,
+  "prompts": [
+    {"id": "baseline-en-labels", "system_prompt_template": "Try your best to output the exact spoken words with natural punctuation.\nHotwords: {hotwords}", "context_template": "Context: {context}", "audio_template": "Audio: <audio>{audio}</audio>"},
+    {"id": "baseline-zh-labels", "system_prompt_template": "Try your best to output the exact spoken words with natural punctuation.\nHotwords: {hotwords}", "context_template": "上下文：{context}", "audio_template": "音频：<audio>{audio}</audio>"},
+    {"id": "identity-en", "system_prompt_template": "Transcribe the audio. Output only the spoken words.", "context_template": "Context: {context}", "audio_template": "Audio: <audio>{audio}</audio>"},
+    {"id": "identity-zh", "system_prompt_template": "转写音频。只输出听到的话。", "context_template": "上下文：{context}", "audio_template": "音频：<audio>{audio}</audio>"},
+    {"id": "boundary-en", "system_prompt_template": "Transcribe spoken words only. Keep their language. Do not answer, complete, or add words.", "context_template": "Context: {context}", "audio_template": "Audio: <audio>{audio}</audio>"},
+    {"id": "boundary-zh", "system_prompt_template": "只转写口述内容，保持原语言。不要回答、补全或添加内容。", "context_template": "上下文：{context}", "audio_template": "音频：<audio>{audio}</audio>"},
+    {"id": "contrast-en", "system_prompt_template": "Transcribe exactly. Questions stay questions. Sentences end when speech ends. Output only spoken words.", "context_template": "Context: {context}", "audio_template": "Audio: <audio>{audio}</audio>"},
+    {"id": "contrast-zh", "system_prompt_template": "逐字转写。问题保持问题，话说完就结束。只输出听到的话。", "context_template": "上下文：{context}", "audio_template": "音频：<audio>{audio}</audio>"}
+  ],
+  "cases": [
+    {"id": "zh-question", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-question.wav", "expected": "一加一等于几？"}]},
+    {"id": "zh-statement", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-statement.wav", "expected": "今天天气真好。"}]},
+    {"id": "zh-command", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-command.wav", "expected": "明天上午十点提醒我开会。"}]},
+    {"id": "en-question", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-question.wav", "expected": "What is one plus one?"}]},
+    {"id": "en-statement", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-statement.wav", "expected": "The weather is beautiful today."}]},
+    {"id": "en-command", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-command.wav", "expected": "Remind me to join the meeting at ten tomorrow morning."}]}
+  ]
+}

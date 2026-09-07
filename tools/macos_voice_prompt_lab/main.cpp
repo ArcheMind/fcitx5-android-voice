@@ -42,6 +42,7 @@ struct TestCase {
 
 struct Experiment {
     fs::path modelDir;
+    size_t repetitions = 1;
     std::vector<Prompt> prompts;
     std::vector<TestCase> cases;
 };
@@ -74,6 +75,15 @@ std::vector<std::string> strings(const rapidjson::Value& object, const char* nam
     return result;
 }
 
+size_t optionalPositiveSize(const rapidjson::Value& object, const char* name, size_t fallback) {
+    if (!object.HasMember(name)) return fallback;
+    const auto& value = object[name];
+    if (!value.IsUint64() || value.GetUint64() == 0) {
+        throw std::runtime_error(std::string("Expected positive integer: ") + name);
+    }
+    return static_cast<size_t>(value.GetUint64());
+}
+
 fs::path resolve(const fs::path& root, const std::string& value) {
     const fs::path path(value);
     return path.is_absolute() ? path : root / path;
@@ -88,6 +98,7 @@ Experiment parseExperiment(const fs::path& path, const fs::path& modelOverride) 
     const auto root = path.parent_path();
     Experiment experiment;
     experiment.modelDir = modelOverride.empty() ? resolve(root, requiredString(document, "model_dir")) : modelOverride;
+    experiment.repetitions = optionalPositiveSize(document, "repetitions", 1);
     if (!document.HasMember("prompts") || !document["prompts"].IsArray()) {
         throw std::runtime_error("Experiment requires prompts array");
     }
@@ -189,9 +200,11 @@ std::string json(const std::string& value) {
 
 void writeResult(std::ostream& output, const Prompt& prompt, const TestCase& testCase, const Segment& segment,
                  const std::string& systemPrompt, const std::string& contextMessage, const std::string& audioMessage,
-                 const std::string& raw, const std::string& error, const LlmContext* context, long long wallUs) {
+                 size_t repetition, const std::string& raw, const std::string& error,
+                 const LlmContext* context, long long wallUs) {
     output << "{\"prompt_id\":" << json(prompt.id)
            << ",\"case_id\":" << json(testCase.id)
+           << ",\"repetition\":" << repetition
            << ",\"audio\":" << json(segment.audio.string())
            << ",\"expected\":" << json(segment.expected)
            << ",\"system_prompt\":" << json(systemPrompt)
@@ -226,30 +239,33 @@ void runPrompt(const Experiment& experiment, const Prompt& prompt, std::ostream&
         if (caseSystemPrompt != systemPrompt) {
             throw std::runtime_error("A prompt variant may not vary its system prompt between cases; split it into prompt variants");
         }
-        if (!engine->beginChatSession()) throw std::runtime_error("MNN could not begin chat session");
         const auto contextMessage = render(prompt.contextTemplate, testCase);
-        ChatMessages messages{{"system", systemPrompt}, {"user", contextMessage}};
-        for (const auto& segment : testCase.segments) {
-            const auto started = std::chrono::steady_clock::now();
-            std::ostringstream raw;
-            std::string error;
-            const auto audioMessage = render(prompt.audioTemplate, testCase, segment.audio);
-            messages.emplace_back("user", audioMessage);
-            std::cerr << "MNN request: prompt_id=" << prompt.id << " case_id=" << testCase.id
-                      << " system=" << systemPrompt << " context=" << contextMessage
-                      << " audio=" << audioMessage << '\n';
-            engine->responseChatSession(messages, &raw, "<eop>", 256);
-            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count();
-            const auto* context = engine->getContext();
-            if (context && context->status == LlmStatus::INTERNAL_ERROR) error = "MNN internal error";
-            const auto normalized = normalize(raw.str());
-            if (error.empty()) messages.emplace_back("assistant", normalized);
-            std::cerr << "MNN response: prompt_id=" << prompt.id << " case_id=" << testCase.id
-                      << " raw=" << raw.str() << " error=" << error << '\n';
-            writeResult(results, prompt, testCase, segment, systemPrompt, contextMessage, audioMessage,
-                        raw.str(), error, context, elapsed);
+        for (size_t repetition = 1; repetition <= experiment.repetitions; ++repetition) {
+            if (!engine->beginChatSession()) throw std::runtime_error("MNN could not begin chat session");
+            ChatMessages messages{{"system", systemPrompt}, {"user", contextMessage}};
+            for (const auto& segment : testCase.segments) {
+                const auto started = std::chrono::steady_clock::now();
+                std::ostringstream raw;
+                std::string error;
+                const auto audioMessage = render(prompt.audioTemplate, testCase, segment.audio);
+                messages.emplace_back("user", audioMessage);
+                std::cerr << "MNN request: prompt_id=" << prompt.id << " case_id=" << testCase.id
+                          << " repetition=" << repetition << " system=" << systemPrompt
+                          << " context=" << contextMessage << " audio=" << audioMessage << '\n';
+                engine->responseChatSession(messages, &raw, "<eop>", 256);
+                const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count();
+                const auto* context = engine->getContext();
+                if (context && context->status == LlmStatus::INTERNAL_ERROR) error = "MNN internal error";
+                const auto normalized = normalize(raw.str());
+                if (error.empty()) messages.emplace_back("assistant", normalized);
+                std::cerr << "MNN response: prompt_id=" << prompt.id << " case_id=" << testCase.id
+                          << " repetition=" << repetition << " raw=" << raw.str()
+                          << " error=" << error << '\n';
+                writeResult(results, prompt, testCase, segment, systemPrompt, contextMessage, audioMessage,
+                            repetition, raw.str(), error, context, elapsed);
+            }
+            engine->endChatSession();
         }
-        engine->endChatSession();
     }
 }
 }
