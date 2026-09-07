@@ -19,6 +19,7 @@ namespace {
 std::mutex engine_mutex;
 std::unique_ptr<Llm> engine;
 std::string loaded_config;
+std::string loaded_system_prompt;
 
 jbyteArray toBytes(JNIEnv* env, const std::string& text) {
     auto bytes = env->NewByteArray(static_cast<jsize>(text.size()));
@@ -61,13 +62,40 @@ void throwIllegalState(JNIEnv* env, const std::string& message) {
     env->ThrowNew(clazz, message.c_str());
 }
 
-void ensureLoaded(const std::string& config) {
-    if (engine && loaded_config == config) return;
+std::string jsonString(const std::string& value) {
+    static constexpr char Hex[] = "0123456789abcdef";
+    std::string result = "\"";
+    for (const unsigned char character : value) {
+        switch (character) {
+            case '"': result += "\\\""; break;
+            case '\\': result += "\\\\"; break;
+            case '\b': result += "\\b"; break;
+            case '\f': result += "\\f"; break;
+            case '\n': result += "\\n"; break;
+            case '\r': result += "\\r"; break;
+            case '\t': result += "\\t"; break;
+            default:
+                if (character < 0x20) {
+                    result += "\\u00";
+                    result += Hex[character >> 4];
+                    result += Hex[character & 0x0f];
+                } else {
+                    result += static_cast<char>(character);
+                }
+        }
+    }
+    return result + '"';
+}
+
+void ensureLoaded(const std::string& config, const std::string& system_prompt) {
+    if (engine && loaded_config == config && loaded_system_prompt == system_prompt) return;
     engine.reset(Llm::createLLM(config));
     if (!engine) {
         throw std::runtime_error("MNN could not create the local model");
     }
-    engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"reuse_kv":true,"use_mmap":true,"system_prompt":"Speech-to-text only. Output exactly the spoken words and nothing else. Include natural punctuation. Transcribe only the current audio. Output transcription only; never repeat or discuss Context or Hotwords."})");
+    engine->set_config(
+        R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"reuse_kv":true,"use_mmap":true,"system_prompt":)" +
+        jsonString(system_prompt) + "}");
     if (!engine->load()) {
         const auto detail = engine->getLog();
         engine.reset();
@@ -81,6 +109,7 @@ void ensureLoaded(const std::string& config) {
     __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN fixed prefix ready: tokens=%zu",
                         engine->getCurrentHistory());
     loaded_config = config;
+    loaded_system_prompt = system_prompt;
 }
 }
 
@@ -92,15 +121,16 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_unloadNative(
         __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN unload: releasing engine");
         engine.reset();
         loaded_config.clear();
+        loaded_system_prompt.clear();
     }
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_prewarmNative(
-        JNIEnv* env, jobject, jstring config_path) {
+        JNIEnv* env, jobject, jstring config_path, jstring system_prompt) {
     try {
         std::lock_guard<std::mutex> lock(engine_mutex);
-        ensureLoaded(fromJString(env, config_path));
+        ensureLoaded(fromJString(env, config_path), fromJString(env, system_prompt));
     } catch (const std::exception& error) {
         throwIllegalState(env, error.what());
     }
@@ -108,7 +138,7 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_prewarmNative(
 
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
-        JNIEnv* env, jobject, jstring config_path, jstring audio_path, jstring instruction,
+        JNIEnv* env, jobject, jstring config_path, jstring audio_path, jstring instruction, jstring system_prompt,
         jobject callback) {
     try {
         auto callback_class = env->GetObjectClass(callback);
@@ -117,7 +147,7 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
         if (!method) return nullptr;
         std::lock_guard<std::mutex> lock(engine_mutex);
         const auto config = fromJString(env, config_path);
-        ensureLoaded(config);
+        ensureLoaded(config, fromJString(env, system_prompt));
         const auto prompt = fromJString(env, instruction) + "\n<audio>" +
                             fromJString(env, audio_path) + "</audio>";
         StreamingBuffer buffer(env, callback, method);
