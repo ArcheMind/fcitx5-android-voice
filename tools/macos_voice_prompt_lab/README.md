@@ -41,11 +41,13 @@ sessions repeatedly. Every JSONL record includes its one-based `repetition`,
 so output stability is measurable without mixing session history between
 attempts.
 
-Each JSON Lines result preserves the prompt/case IDs, fully rendered messages,
+Each JSON Lines result preserves the prompt/case IDs, one-based segment index, fully rendered messages,
 WAV path, reference text, raw generation, normalized text, any MNN error,
-wall-clock duration, and MNN audio/prefill/decode/TTFA timings. The runner logs
-the raw MNN request and response to stderr. It does not score correctness: the
-reference transcript is emitted unchanged so scoring policy remains explicit.
+wall-clock duration, and MNN audio/prefill/decode/TTFA timings. When `expected`
+is set, `matches_expected` and `failure` provide an explicit verdict. A result
+that differs only by added ASCII or common Chinese punctuation is classified as
+`added-punctuation`; this is a failure because the reference transcript records
+only spoken words. The runner logs the raw MNN request and response to stderr.
 
 ## Prompt experiment schema
 
@@ -63,11 +65,20 @@ single language.
 
 ## Synthetic first-pass fixtures
 
-Run `generate_synthetic_fixtures.sh` to create six deterministic 16 kHz WAV
-files using macOS voices: Chinese and English question, statement, and command
-utterances. Then run `synthetic-prompt-experiment.json`, supplying the model
-directory as the third argument. Its matrix preserves Android's two baseline
-label modes and compares three short philosophies: identity, explicit
-boundaries, and sentence-boundary contrast. It repeats each prompt/case pair
-three times. Synthetic speech is for controlled screening only; validate a
-winning prompt with recorded phone speech before changing Android behavior.
+Run `generate_synthetic_fixtures.sh` to create deterministic 16 kHz WAV files
+using macOS voices: Chinese and English question, statement, command, and
+three-segment conversation utterances. Then run
+`synthetic-prompt-experiment.json`, supplying the model directory as the third
+argument. Its matrix preserves Android's two baseline label modes and compares
+three short philosophies: identity, explicit boundaries, and sentence-boundary
+contrast. It repeats each prompt/case pair three times.
+
+## Multi-turn and punctuation coverage
+
+`few-shot-prompt-experiment.json` also contains Chinese and English cases with
+an existing Context message and three audio segments. The runner sends each
+case as Android does: one System message, one Context user message, then an
+Audio user message and normalized assistant message for every segment. Its
+expected text has no punctuation, so generated punctuation is reported as the
+distinct `added-punctuation` failure mode rather than being hidden by a
+punctuation-insensitive comparison.

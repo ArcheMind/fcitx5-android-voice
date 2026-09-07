@@ -47,6 +47,12 @@ struct Experiment {
     std::vector<TestCase> cases;
 };
 
+struct Evaluation {
+    bool matches;
+    bool addedPunctuation;
+    std::string failure;
+};
+
 std::string readFile(const fs::path& path) {
     std::ifstream input(path);
     if (!input) throw std::runtime_error("Cannot read " + path.string());
@@ -182,6 +188,19 @@ std::string normalize(std::string text) {
     return text;
 }
 
+std::string removePunctuation(std::string text) {
+    static const std::regex punctuation(R"([.,!?;:，。！？；：、])");
+    return std::regex_replace(std::move(text), punctuation, "");
+}
+
+Evaluation evaluate(const Segment& segment, const std::string& normalized, const std::string& error) {
+    if (!error.empty()) return {false, false, "mnn-error"};
+    if (segment.expected.empty()) return {true, false, ""};
+    if (normalized == segment.expected) return {true, false, ""};
+    const bool addedPunctuation = removePunctuation(normalized) == removePunctuation(segment.expected);
+    return {false, addedPunctuation, addedPunctuation ? "added-punctuation" : "transcript-mismatch"};
+}
+
 std::string json(const std::string& value) {
     std::ostringstream output;
     output << '"';
@@ -200,18 +219,23 @@ std::string json(const std::string& value) {
 
 void writeResult(std::ostream& output, const Prompt& prompt, const TestCase& testCase, const Segment& segment,
                  const std::string& systemPrompt, const std::string& contextMessage, const std::string& audioMessage,
-                 size_t repetition, const std::string& raw, const std::string& error,
+                 size_t repetition, size_t segmentIndex, const std::string& raw, const std::string& normalized, const Evaluation& evaluation,
+                 const std::string& error,
                  const LlmContext* context, long long wallUs) {
     output << "{\"prompt_id\":" << json(prompt.id)
            << ",\"case_id\":" << json(testCase.id)
            << ",\"repetition\":" << repetition
+           << ",\"segment_index\":" << segmentIndex
            << ",\"audio\":" << json(segment.audio.string())
            << ",\"expected\":" << json(segment.expected)
            << ",\"system_prompt\":" << json(systemPrompt)
            << ",\"context_message\":" << json(contextMessage)
            << ",\"audio_message\":" << json(audioMessage)
            << ",\"raw\":" << json(raw)
-           << ",\"normalized\":" << json(normalize(raw))
+           << ",\"normalized\":" << json(normalized)
+           << ",\"matches_expected\":" << (evaluation.matches ? "true" : "false")
+           << ",\"added_punctuation\":" << (evaluation.addedPunctuation ? "true" : "false")
+           << ",\"failure\":" << json(evaluation.failure)
            << ",\"error\":" << json(error)
            << ",\"wall_us\":" << wallUs;
     if (context) {
@@ -243,7 +267,8 @@ void runPrompt(const Experiment& experiment, const Prompt& prompt, std::ostream&
         for (size_t repetition = 1; repetition <= experiment.repetitions; ++repetition) {
             if (!engine->beginChatSession()) throw std::runtime_error("MNN could not begin chat session");
             ChatMessages messages{{"system", systemPrompt}, {"user", contextMessage}};
-            for (const auto& segment : testCase.segments) {
+            for (size_t segmentIndex = 0; segmentIndex < testCase.segments.size(); ++segmentIndex) {
+                const auto& segment = testCase.segments[segmentIndex];
                 const auto started = std::chrono::steady_clock::now();
                 std::ostringstream raw;
                 std::string error;
@@ -257,12 +282,13 @@ void runPrompt(const Experiment& experiment, const Prompt& prompt, std::ostream&
                 const auto* context = engine->getContext();
                 if (context && context->status == LlmStatus::INTERNAL_ERROR) error = "MNN internal error";
                 const auto normalized = normalize(raw.str());
+                const auto evaluation = evaluate(segment, normalized, error);
                 if (error.empty()) messages.emplace_back("assistant", normalized);
                 std::cerr << "MNN response: prompt_id=" << prompt.id << " case_id=" << testCase.id
                           << " repetition=" << repetition << " raw=" << raw.str()
                           << " error=" << error << '\n';
                 writeResult(results, prompt, testCase, segment, systemPrompt, contextMessage, audioMessage,
-                            repetition, raw.str(), error, context, elapsed);
+                            repetition, segmentIndex + 1, raw.str(), normalized, evaluation, error, context, elapsed);
             }
             engine->endChatSession();
         }
