@@ -85,6 +85,17 @@ void ensureLoaded(const std::string& config) {
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_unloadNative(
+        JNIEnv*, jobject) {
+    std::lock_guard<std::mutex> lock(engine_mutex);
+    if (engine) {
+        __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN unload: releasing engine");
+        engine.reset();
+        loaded_config.clear();
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_prewarmNative(
         JNIEnv* env, jobject, jstring config_path) {
     try {

@@ -73,7 +73,14 @@ object LocalMnnEngine {
         }
     }
 
+    fun unload() {
+        Timber.d("MNN unload request")
+        unloadNative()
+        Timber.d("MNN unload response: released")
+    }
+
     private external fun prewarmNative(configPath: String)
+    private external fun unloadNative()
 }
 
 object LocalVoiceModel {

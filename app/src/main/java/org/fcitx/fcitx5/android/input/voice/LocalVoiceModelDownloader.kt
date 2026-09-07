@@ -3,6 +3,7 @@
  */
 package org.fcitx.fcitx5.android.input.voice
 
+import org.fcitx.fcitx5.android.utils.appContext
 import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
@@ -14,6 +15,9 @@ object LocalVoiceModelDownloader {
         "https://huggingface.co/taobao-mnn/Qwen2.5-Omni-3B-MNN/resolve/00dc2e9131a4bb325b43a47f4210dd6450116687"
 
     fun download(onProgress: (downloaded: Long, total: Long) -> Unit) {
+        if (VoiceInputPreferences.keepModelReady()) {
+            ModelKeepAliveService.stop(appContext)
+        }
         val directory = LocalVoiceModel.directory().also(File::mkdirs)
         val total = LocalVoiceModel.Files.sumOf { it.size }
         LocalVoiceModel.Files.forEach { item ->
