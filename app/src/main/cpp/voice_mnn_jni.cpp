@@ -3,6 +3,8 @@
  */
 #include <jni.h>
 
+#include <android/log.h>
+
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -65,14 +67,32 @@ void ensureLoaded(const std::string& config) {
     if (!engine) {
         throw std::runtime_error("MNN could not create the local model");
     }
-    engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"use_mmap":true,"system_prompt":"Speech-to-text only. Output exactly the spoken words and nothing else. Include natural punctuation."})");
+    engine->set_config(R"({"async":false,"has_talker":false,"is_visual":false,"max_new_tokens":256,"reuse_kv":true,"use_mmap":true,"system_prompt":"Speech-to-text only. Output exactly the spoken words and nothing else. Include natural punctuation. Transcribe only the current audio. Output transcription only; never repeat or discuss Context or Hotwords."})");
     if (!engine->load()) {
         const auto detail = engine->getLog();
         engine.reset();
         throw std::runtime_error("MNN model load failed: " + detail);
     }
+    if (!engine->prefillFixedPrompt()) {
+        const auto detail = engine->getLog();
+        engine.reset();
+        throw std::runtime_error("MNN fixed prompt prefill failed: " + detail);
+    }
+    __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN fixed prefix ready: tokens=%zu",
+                        engine->getCurrentHistory());
     loaded_config = config;
 }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_unloadNative(
+        JNIEnv*, jobject) {
+    std::lock_guard<std::mutex> lock(engine_mutex);
+    if (engine) {
+        __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN unload: releasing engine");
+        engine.reset();
+        loaded_config.clear();
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -97,14 +117,26 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
         if (!method) return nullptr;
         std::lock_guard<std::mutex> lock(engine_mutex);
         const auto config = fromJString(env, config_path);
-        const bool already_loaded = engine && loaded_config == config;
         ensureLoaded(config);
-        if (already_loaded) engine->reset();
         const auto prompt = fromJString(env, instruction) + "\n<audio>" +
                             fromJString(env, audio_path) + "</audio>";
         StreamingBuffer buffer(env, callback, method);
         std::ostream output(&buffer);
         engine->response(prompt, &output, "<eop>", 256);
+        const auto* context = engine->getContext();
+        if (context) {
+            __android_log_print(
+                ANDROID_LOG_DEBUG,
+                "fcitx5",
+                "MNN performance: audio_us=%lld prefill_us=%lld decode_us=%lld ttfa_us=%lld sample_us=%lld prompt_len=%d gen_seq_len=%d",
+                static_cast<long long>(context->audio_us),
+                static_cast<long long>(context->prefill_us),
+                static_cast<long long>(context->decode_us),
+                static_cast<long long>(context->ttfa_us),
+                static_cast<long long>(context->sample_us),
+                context->prompt_len,
+                context->gen_seq_len);
+        }
         if (env->ExceptionCheck()) return nullptr;
         return toBytes(env, buffer.str());
     } catch (const std::exception& error) {

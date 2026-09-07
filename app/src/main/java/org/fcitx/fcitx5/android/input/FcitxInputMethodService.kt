@@ -65,7 +65,9 @@ import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.input.cursor.CursorRange
 import org.fcitx.fcitx5.android.input.cursor.CursorTracker
+import org.fcitx.fcitx5.android.input.voice.ModelKeepAliveService
 import org.fcitx.fcitx5.android.input.voice.VoiceInputController
+import org.fcitx.fcitx5.android.input.voice.VoiceInputPreferences
 import org.fcitx.fcitx5.android.input.voice.VoiceState
 import org.fcitx.fcitx5.android.utils.InputMethodUtil
 import org.fcitx.fcitx5.android.utils.alpha
@@ -240,6 +242,9 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         decorView = window.window!!.decorView
         contentView = decorView.findViewById(android.R.id.content)
         lastKnownConfig = resources.configuration
+        if (VoiceInputPreferences.keepModelReady()) {
+            ModelKeepAliveService.start(this)
+        }
     }
 
     private fun handleFcitxEvent(event: FcitxEvent<*>) {

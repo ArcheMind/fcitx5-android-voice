@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreferenceFragment
+import org.fcitx.fcitx5.android.input.voice.ModelKeepAliveService
 import org.fcitx.fcitx5.android.input.voice.VoiceInputPreferences
 import org.fcitx.fcitx5.android.input.voice.LocalVoiceModel
 import org.fcitx.fcitx5.android.input.voice.LocalVoiceModelDownloader
@@ -60,6 +61,27 @@ class KeyboardSettingsFragment : ManagedPreferenceFragment(AppPrefs.getInstance(
                         }
                         isEnabled = true
                     }
+                }
+                true
+            }
+        })
+        val keepAliveAvailable = LocalVoiceModel.isReady() && VoiceInputPreferences.preferLocal()
+        category.addPreference(SwitchPreferenceCompat(context).apply {
+            key = VoiceInputPreferences.KeepModelReady
+            title = context.getString(R.string.voice_input_keep_model_ready)
+            summary = if (keepAliveAvailable) {
+                context.getString(R.string.voice_input_keep_model_ready_summary)
+            } else {
+                context.getString(R.string.voice_input_keep_model_ready_unavailable)
+            }
+            setDefaultValue(false)
+            isEnabled = keepAliveAvailable
+            isIconSpaceReserved = false
+            setOnPreferenceChangeListener { _, newValue ->
+                if (newValue == true) {
+                    ModelKeepAliveService.start(context)
+                } else {
+                    ModelKeepAliveService.stop(context)
                 }
                 true
             }
