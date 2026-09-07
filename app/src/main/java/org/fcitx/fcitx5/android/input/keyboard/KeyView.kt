@@ -413,17 +413,37 @@ class ImageTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.ImageT
         appearanceView.apply {
             add(img, lParams(dp(13), dp(13)))
         }
-        mainText.updateLayoutParams<ConstraintLayout.LayoutParams> {
-            centerHorizontally()
-            bottomToBottom = parentId
-            bottomMargin = vMargin + dp(4)
-            topToTop = unset
+        if (def.viewId == R.id.button_space) {
+            mainText.updateLayoutParams<ConstraintLayout.LayoutParams> {
+                leftToLeft = unset
+                leftToRight = img.existingOrNewId
+                rightToRight = parentId
+                topToTop = parentId
+                bottomToBottom = parentId
+                leftMargin = dp(4)
+            }
+            img.updateLayoutParams<ConstraintLayout.LayoutParams> {
+                leftToLeft = parentId
+                rightToRight = unset
+                rightToLeft = mainText.existingOrNewId
+                topToTop = parentId
+                bottomToBottom = parentId
+                rightMargin = dp(4)
+                horizontalChainStyle = ConstraintLayout.LayoutParams.CHAIN_PACKED
+            }
+        } else {
+            mainText.updateLayoutParams<ConstraintLayout.LayoutParams> {
+                centerHorizontally()
+                bottomToBottom = parentId
+                bottomMargin = vMargin + dp(4)
+                topToTop = unset
+            }
+            img.updateLayoutParams<ConstraintLayout.LayoutParams> {
+                centerHorizontally()
+                topToTop = parentId
+            }
+            updateMargins(resources.configuration.orientation)
         }
-        img.updateLayoutParams<ConstraintLayout.LayoutParams> {
-            centerHorizontally()
-            topToTop = parentId
-        }
-        updateMargins(resources.configuration.orientation)
     }
 
     private fun updateMargins(orientation: Int) {
@@ -448,6 +468,8 @@ class ImageTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.ImageT
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
-        updateMargins(newConfig.orientation)
+        if (def.viewId != R.id.button_space) {
+            updateMargins(newConfig.orientation)
+        }
     }
 }
