@@ -211,8 +211,7 @@ class SpaceKey : KeyDef(
         src = R.drawable.ic_baseline_keyboard_voice_24,
         percentWidth = 0f,
         border = Border.Special,
-        viewId = R.id.button_space,
-        soundEffect = InputFeedbacks.SoundEffect.SpaceBar
+        viewId = R.id.button_space
     ),
     setOf(
         Behavior.Press(KeyAction.SymAction(KeySym(FcitxKeyMapping.FcitxKey_space))),
