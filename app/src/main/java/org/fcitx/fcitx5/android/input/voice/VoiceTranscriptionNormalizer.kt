@@ -59,7 +59,7 @@ object VoiceTranscriptionNormalizer {
     }
 
     fun normalize(raw: String): String {
-        var text = raw.replace(thinking, "").replace(terminalTokens, "").trim()
+        var text = raw.replace(thinking, "").replace(terminalTokens, "").replace("`", "").trim()
         text = chineseQuotedWrapper.matchEntire(text)?.groupValues?.get(1)
             ?: englishQuotedWrapper.matchEntire(text)?.groupValues?.get(1)
             ?: text.replaceFirst(resultPrefix, "")

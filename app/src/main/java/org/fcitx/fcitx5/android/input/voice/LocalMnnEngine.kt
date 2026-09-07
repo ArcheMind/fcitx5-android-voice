@@ -59,7 +59,7 @@ object LocalMnnEngine {
     ): ByteArray
 
     private fun systemPrompt(hotwords: List<String>) = buildString {
-        append("You are a powerful voice input method. Your output will be committed as input.")
+        append("Try your best to output the spoken words with natural punctuation.")
         append("\nHotwords: ")
         append(hotwords.joinToString(", "))
     }
@@ -79,13 +79,7 @@ object LocalMnnEngine {
         append("<audio>")
         append(audioPath)
         append("</audio>")
-        append(
-            if (isChinese) {
-                "\n输出说出的内容并添加自然标点。不要输出任何其他内容。"
-            } else {
-                "\nOutput the spoken words with natural punctuation. Never output anything else."
-            }
-        )
+        append(if (isChinese) "\n输出：\n```" else "\nOutput:\n```")
     }
 
     @Keep
