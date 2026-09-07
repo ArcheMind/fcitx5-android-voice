@@ -24,6 +24,7 @@ import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreferenceProvider
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.voice.VoiceState
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.input.bar.KawaiiBarComponent
 import org.fcitx.fcitx5.android.input.broadcast.InputBroadcaster
@@ -375,6 +376,10 @@ class InputView(
 
     fun updateSelection(start: Int, end: Int) {
         broadcaster.onSelectionUpdate(start, end)
+    }
+
+    fun onVoiceStateUpdate(state: VoiceState) {
+        broadcaster.onVoiceStateUpdate(state)
     }
 
     @RequiresApi(Build.VERSION_CODES.R)

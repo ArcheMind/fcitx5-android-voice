@@ -12,11 +12,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.input.FcitxInputMethodService
 import timber.log.Timber
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 class VoiceInputController(
@@ -35,6 +38,13 @@ class VoiceInputController(
     private var session: ActiveSession? = null
     private var generation = 0L
     private var processing = false
+    private var previewText = ""
+
+    var voiceState: VoiceState = VoiceState.Idle
+        private set(value) {
+            field = value
+            service.onVoiceStateChanged(value)
+        }
 
     init {
         scope.launch(Dispatchers.IO) {
@@ -66,21 +76,21 @@ class VoiceInputController(
             val committed = AtomicBoolean(false)
             val worker = startWorker(currentGeneration, recording, committed)
             session = ActiveSession(currentGeneration, recording, worker, committed)
-            toast(R.string.voice_input_listening)
+            voiceState = VoiceState.Recording
         }.onFailure(::showFailure)
     }
 
     fun finish(cancel: Boolean) {
         val active = session ?: return
-        session = null
         if (cancel) {
+            session = null
             cancel(active)
-            toast(R.string.voice_input_cancelled)
             return
         }
+        if (processing) return
 
         processing = true
-        toast(R.string.voice_input_processing)
+        voiceState = VoiceState.Processing
         scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) { recorder.stop(active.recording) }
@@ -90,18 +100,19 @@ class VoiceInputController(
                     showFailure(failure)
                 }
             }
-            if (active.generation == generation && !active.committed.get()) {
-                toast(R.string.voice_input_empty)
-            }
             withContext(Dispatchers.IO) { active.recording.directory.delete() }
-            processing = false
+            if (active.generation == generation) {
+                session = null
+                processing = false
+                voiceState = VoiceState.Idle
+            }
         }
     }
 
-    fun cancel() {
+    fun cancel(clearPreview: Boolean = true) {
         val active = session ?: return
         session = null
-        cancel(active)
+        cancel(active, clearPreview)
     }
 
     private fun startWorker(
@@ -114,17 +125,11 @@ class VoiceInputController(
         try {
             for (audio in recording.segments) {
                 try {
-                    val rawText = withContext(Dispatchers.IO) {
-                        client.transcribe(
-                            audio,
-                            precedingText,
-                            VoiceInputPreferences.hotwords(),
-                            hasPreviousChunk
-                        )
-                    }
+                    val rawText = transcribe(audio, precedingText, hasPreviousChunk, currentGeneration)
                     val text = VoiceTranscriptionNormalizer.normalize(rawText)
                     if (currentGeneration == generation && text.isNotBlank()) {
                         service.commitText(text)
+                        previewText = ""
                         precedingText += text
                         hasPreviousChunk = true
                         committed.set(true)
@@ -135,6 +140,7 @@ class VoiceInputController(
                 } catch (failure: Throwable) {
                     if (currentGeneration == generation) showFailure(failure)
                 } finally {
+                    if (currentGeneration == generation) clearPreviewText()
                     withContext(NonCancellable + Dispatchers.IO) { audio.delete() }
                 }
             }
@@ -145,13 +151,54 @@ class VoiceInputController(
         }
     }
 
-    private fun cancel(active: ActiveSession) {
+    private suspend fun transcribe(
+        audio: File,
+        precedingText: String,
+        hasPreviousChunk: Boolean,
+        currentGeneration: Long
+    ): String = coroutineScope {
+        val updates = Channel<String>(Channel.CONFLATED)
+        val reader = launch {
+            var firstPreview = true
+            for (raw in updates) {
+                if (currentGeneration != generation) continue
+                val text = VoiceTranscriptionNormalizer.preview(raw)
+                if (text == previewText) continue
+                service.previewVoiceText(text)
+                previewText = text
+                if (firstPreview && text.isNotBlank()) {
+                    firstPreview = false
+                    Timber.d("Voice segment first preview: file=%s text=%s", audio.absolutePath, text)
+                }
+            }
+        }
+        try {
+            withContext(Dispatchers.IO) {
+                client.transcribe(audio, precedingText, VoiceInputPreferences.hotwords(), hasPreviousChunk) {
+                    updates.trySend(it)
+                }
+            }
+        } finally {
+            updates.close()
+            withContext(NonCancellable) { reader.join() }
+        }
+    }
+
+    private fun clearPreviewText() {
+        if (previewText.isNotEmpty()) service.previewVoiceText("")
+        previewText = ""
+    }
+
+    private fun cancel(active: ActiveSession, clearPreview: Boolean = true) {
         processing = true
+        voiceState = VoiceState.Idle
         ++generation
+        if (clearPreview) clearPreviewText() else previewText = ""
         recorder.abort(active.recording)
         active.worker.cancel()
         scope.launch {
             active.recording.writer.join()
+            active.worker.join()
             processing = false
         }
     }

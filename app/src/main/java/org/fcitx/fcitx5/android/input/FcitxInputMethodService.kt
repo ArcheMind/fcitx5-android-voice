@@ -66,6 +66,7 @@ import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.input.cursor.CursorRange
 import org.fcitx.fcitx5.android.input.cursor.CursorTracker
 import org.fcitx.fcitx5.android.input.voice.VoiceInputController
+import org.fcitx.fcitx5.android.input.voice.VoiceState
 import org.fcitx.fcitx5.android.utils.InputMethodUtil
 import org.fcitx.fcitx5.android.utils.alpha
 import org.fcitx.fcitx5.android.utils.forceShowSelf
@@ -87,6 +88,14 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     private val voiceInputDelegate = lazy { VoiceInputController(this, lifecycleScope) }
     private val voiceInput by voiceInputDelegate
+
+    var voiceState: VoiceState = VoiceState.Idle
+        private set
+
+    fun onVoiceStateChanged(state: VoiceState) {
+        voiceState = state
+        inputView?.onVoiceStateUpdate(state)
+    }
 
     private var jobs = Channel<Job>(capacity = Channel.UNLIMITED)
 
@@ -460,6 +469,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     fun getTextBeforeCursor(): String =
         currentInputConnection?.getTextBeforeCursor(8_000, 0)?.toString().orEmpty()
 
+    fun previewVoiceText(text: String) {
+        updateComposingText(
+            if (text.isEmpty()) FormattedText.Empty
+            else FormattedText(arrayOf(text), intArrayOf(0), text.length)
+        )
+    }
+
     fun startVoiceInput() {
         voiceInput.start()
     }
@@ -742,6 +758,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
+        if (voiceInputDelegate.isInitialized()) voiceInput.cancel(clearPreview = false)
         // update selection as soon as possible
         // sometimes when restarting input, onUpdateSelection happens before onStartInput, and
         // initialSel{Start,End} is outdated. but it's the client app's responsibility to send
@@ -1066,6 +1083,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     override fun onFinishInputView(finishingInput: Boolean) {
         Timber.d("onFinishInputView: finishingInput=$finishingInput")
+        if (voiceInputDelegate.isInitialized()) voiceInput.cancel()
         decorLocationUpdated = false
         inputDeviceMgr.onFinishInputView()
         currentInputConnection?.apply {
@@ -1082,6 +1100,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     override fun onFinishInput() {
         Timber.d("onFinishInput")
+        if (voiceInputDelegate.isInitialized()) voiceInput.cancel()
         postFcitxJob {
             focus(false)
         }

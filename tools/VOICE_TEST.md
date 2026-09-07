@@ -6,6 +6,8 @@ Run from the repository on the Mac connected to V2429:
 python3 tools/voice_acoustic_test.py --trials 2
 ```
 
+For a streaming build, add `--require-preview`. The runner captures a screenshot immediately after the first-preview log and checks that capture finishes before the final commit. Inspect the saved image to verify partially displayed text; the timing check alone does not verify pixels. Reports include `stop_to_first_preview_s`, `first_preview_to_commit_s`, and `preview_screenshot`. UI Automator waits for an idle UI, so it is used only for final text verification. Screenshot capture adds overhead; compare these runs with that limitation in mind.
+
 Requires `adb`, Python 3, macOS `say` with Tingting, and `afplay`. Keep the phone near the LG display speakers. The runner uses the existing Mac output without changing routing or volume. The phone must be unlocked and unfolded at 2200×2480, with the Chinese UI, the debug voice keyboard selected, local recognition enabled, and its model installed. The fixed space-key position is specific to this verified layout.
 
 The runner opens the keyboard settings' empty hotword editor, plays the same speech for each trial, checks committed text against the actual editor, and cancels the dialog afterward. Existing nonempty hotwords cause an abort. It never confirms or saves the editor. Do not interact with the phone during a run. No application rebuild or audio-injection modification is needed.
