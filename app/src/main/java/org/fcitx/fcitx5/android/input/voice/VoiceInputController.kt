@@ -121,17 +121,15 @@ class VoiceInputController(
         committed: AtomicBoolean
     ) = scope.launch {
         var precedingText = service.getTextBeforeCursor()
-        var hasPreviousChunk = false
         try {
             for (audio in recording.segments) {
                 try {
-                    val rawText = transcribe(audio, precedingText, hasPreviousChunk, currentGeneration)
+                    val rawText = transcribe(audio, precedingText, currentGeneration)
                     val text = VoiceTranscriptionNormalizer.normalize(rawText)
                     if (currentGeneration == generation && text.isNotBlank()) {
                         service.commitText(text)
                         previewText = ""
                         precedingText += text
-                        hasPreviousChunk = true
                         committed.set(true)
                         Timber.d("Voice segment committed: file=%s text=%s", audio.absolutePath, text)
                     }
@@ -154,7 +152,6 @@ class VoiceInputController(
     private suspend fun transcribe(
         audio: File,
         precedingText: String,
-        hasPreviousChunk: Boolean,
         currentGeneration: Long
     ): String = coroutineScope {
         val updates = Channel<String>(Channel.CONFLATED)
@@ -174,7 +171,7 @@ class VoiceInputController(
         }
         try {
             withContext(Dispatchers.IO) {
-                client.transcribe(audio, precedingText, VoiceInputPreferences.hotwords(), hasPreviousChunk) {
+                client.transcribe(audio, precedingText, VoiceInputPreferences.hotwords()) {
                     updates.trySend(it)
                 }
             }

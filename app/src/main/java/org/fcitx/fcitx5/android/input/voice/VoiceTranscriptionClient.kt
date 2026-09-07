@@ -28,11 +28,10 @@ class VoiceTranscriptionClient {
         audio: File,
         precedingText: String,
         hotwords: List<String>,
-        hasPreviousChunk: Boolean,
         onPartial: (String) -> Unit
     ): String {
         if (VoiceInputPreferences.preferLocal() && LocalMnnEngine.isReady()) {
-            return LocalMnnEngine.transcribe(audio, precedingText, hotwords, hasPreviousChunk, onPartial)
+            return LocalMnnEngine.transcribe(audio, precedingText, hotwords, onPartial)
         }
         return if (isCurrentTimeZoneChina()) {
             transcribeWithZhipu(audio, precedingText, hotwords)
@@ -126,13 +125,12 @@ class VoiceTranscriptionClient {
     }
 
     internal fun transcriptionPrompt(precedingText: String, hotwords: List<String>): String = buildString {
-        append("Context: ")
-        if (precedingText.isNotBlank()) {
-            append(precedingText.takeLast(MaxContextChars))
-        }
+        append(contextPrompt(precedingText))
         append("\nHotwords: ")
         append(hotwords.joinToString(", "))
     }
+
+    internal fun contextPrompt(precedingText: String) = "Context: ${precedingText.takeLast(MaxContextChars)}"
 
     private fun postJson(endpoint: String, key: String, body: String): String {
         val connection = openConnection(endpoint, key).apply {
@@ -164,7 +162,7 @@ class VoiceTranscriptionClient {
     companion object {
         private const val OpenAIEndpoint = "https://api.openai.com/v1/chat/completions"
         private const val ZhipuEndpoint = "https://open.bigmodel.cn/api/paas/v4/audio/transcriptions"
-        private const val MaxContextChars = 8_000
+        private const val MaxContextChars = 200
         private val ChinaTimeZones = setOf(
             "Asia/Shanghai",
             "Asia/Chongqing",

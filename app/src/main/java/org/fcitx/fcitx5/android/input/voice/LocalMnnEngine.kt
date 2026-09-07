@@ -14,7 +14,10 @@ object LocalMnnEngine {
     fun prewarm() {
         check(isReady()) { "The local MNN model is not installed" }
         Timber.d("MNN prewarm request: config=%s", LocalVoiceModel.configFile().absolutePath)
-        prewarmNative(LocalVoiceModel.configFile().absolutePath)
+        prewarmNative(
+            LocalVoiceModel.configFile().absolutePath,
+            systemPrompt(VoiceInputPreferences.hotwords())
+        )
         Timber.d("MNN prewarm response: ready")
     }
 
@@ -22,16 +25,10 @@ object LocalMnnEngine {
         audio: File,
         precedingText: String,
         hotwords: List<String>,
-        hasPreviousChunk: Boolean,
         onPartial: (String) -> Unit
     ): String {
         check(isReady()) { "The local MNN model is not installed" }
-        val instruction = buildString {
-            append(VoiceTranscriptionClient().transcriptionPrompt(precedingText, hotwords))
-            if (hasPreviousChunk) {
-                append("\nIf a sentence boundary is needed after Context and its punctuation is missing, begin with that punctuation; never duplicate existing punctuation.")
-            }
-        }
+        val instruction = VoiceTranscriptionClient().contextPrompt(precedingText)
         Timber.d(
             "MNN request: config=%s audio=%s prompt=%s",
             LocalVoiceModel.configFile().absolutePath,
@@ -43,6 +40,7 @@ object LocalMnnEngine {
                 LocalVoiceModel.configFile().absolutePath,
                 audio.absolutePath,
                 instruction,
+                systemPrompt(hotwords),
                 PartialOutput(onPartial)
             ).decodeToString().trim()
         }.onSuccess {
@@ -56,8 +54,15 @@ object LocalMnnEngine {
         configPath: String,
         audioPath: String,
         instruction: String,
+        systemPrompt: String,
         output: PartialOutput
     ): ByteArray
+
+    private fun systemPrompt(hotwords: List<String>) = buildString {
+        append("Speech-to-text only. Try your best to output the spoken words and natural punctuation. Never output anything else.")
+        append("\nHotwords: ")
+        append(hotwords.joinToString(", "))
+    }
 
     @Keep
     class PartialOutput(private val accept: (String) -> Unit) {
@@ -79,7 +84,7 @@ object LocalMnnEngine {
         Timber.d("MNN unload response: released")
     }
 
-    private external fun prewarmNative(configPath: String)
+    private external fun prewarmNative(configPath: String, systemPrompt: String)
     private external fun unloadNative()
 }
 
