@@ -1,0 +1,31 @@
+{
+  "model_dir": "/replace/with/Qwen2.5-Omni-3B-MNN",
+  "prompts": [
+    {
+      "id": "phone-baseline-en",
+      "system_prompt_template": "Try your best to output the exact spoken words with natural punctuation.\nHotwords: {hotwords}",
+      "context_template": "Context: {context}",
+      "audio_template": "Audio: <audio>{audio}</audio>"
+    },
+    {
+      "id": "phone-baseline-zh",
+      "system_prompt_template": "Try your best to output the exact spoken words with natural punctuation.\nHotwords: {hotwords}",
+      "context_template": "上下文：{context}",
+      "audio_template": "音频：<audio>{audio}</audio>"
+    }
+  ],
+  "cases": [
+    {
+      "id": "replace-with-a-labelled-wav",
+      "language": "zh_CN",
+      "context": "",
+      "hotwords": [],
+      "segments": [
+        {
+          "audio": "fixtures/replace-with-audio.wav",
+          "expected": "replace with the reference transcript"
+        }
+      ]
+    }
+  ]
+}
