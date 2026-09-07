@@ -58,9 +58,9 @@ class ModelKeepAliveService : Service() {
             runCatching(LocalMnnEngine::unload)
                 .onFailure { Timber.e(it, "ModelKeepAliveService unload failed") }
             Timber.d("ModelKeepAliveService release complete")
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
     }
 
     private fun ensureChannel() {
@@ -93,6 +93,19 @@ class ModelKeepAliveService : Service() {
                 action = ACTION_RELEASE
             }
             context.startService(intent)
+        }
+
+        fun suspendForModelUpdate(context: Context) {
+            Timber.d("ModelKeepAliveService suspend for model update")
+            VoiceInputPreferences.setKeepModelReady(false)
+            try {
+                executor.submit(LocalMnnEngine::unload).get()
+                Timber.d("ModelKeepAliveService model update unload complete")
+            } catch (error: Throwable) {
+                Timber.e(error, "ModelKeepAliveService model update unload failed")
+                throw error
+            }
+            context.stopService(Intent(context, ModelKeepAliveService::class.java))
         }
     }
 }
