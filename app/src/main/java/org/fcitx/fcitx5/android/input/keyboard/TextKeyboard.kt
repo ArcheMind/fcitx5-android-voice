@@ -16,6 +16,7 @@ import org.fcitx.fcitx5.android.core.KeyStates
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.voice.VoiceState
 import org.fcitx.fcitx5.android.input.popup.PopupAction
 import splitties.views.imageResource
 
@@ -92,6 +93,8 @@ class TextKeyboard(
 
     private val keepLettersUppercase by AppPrefs.getInstance().keyboard.keepLettersUppercase
 
+    private var savedSpaceText: CharSequence = ""
+
     init {
         updateLangSwitchKey(showLangSwitchKey.getValue())
         showLangSwitchKey.registerOnChangeListener(showLangSwitchKeyListener)
@@ -165,12 +168,31 @@ class TextKeyboard(
     }
 
     override fun onInputMethodUpdate(ime: InputMethodEntry) {
-        space.mainText.text = buildString {
+        val text = buildString {
             append(ime.displayName)
             ime.subMode.run { label.ifEmpty { name.ifEmpty { null } } }?.let { append(" ($it)") }
         }
+        savedSpaceText = text
+        space.mainText.text = text
         if (capsState != CapsState.None) {
             switchCapsState()
+        }
+    }
+
+    override fun onVoiceStateUpdate(state: VoiceState) {
+        when (state) {
+            VoiceState.Idle -> {
+                space.mainText.text = savedSpaceText
+                space.mainText.setTextColor(theme.keyTextColor)
+            }
+            VoiceState.Recording -> {
+                space.mainText.text = context.getString(R.string.voice_input_recording_hint)
+                space.mainText.setTextColor(theme.accentKeyBackgroundColor)
+            }
+            VoiceState.Processing -> {
+                space.mainText.text = "···"
+                space.mainText.setTextColor(theme.altKeyTextColor)
+            }
         }
     }
 

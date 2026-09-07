@@ -214,6 +214,7 @@
     <string name="voice_input_key_saved">已保存</string>
     <string name="voice_input_key_missing">未配置</string>
     <string name="voice_input_listening">正在聆听…上滑取消</string>
+    <string name="voice_input_recording_hint">录制中（↑取消）</string>
     <string name="voice_input_cancelled">已取消语音输入</string>
     <string name="voice_input_processing">正在转写…</string>
     <string name="voice_input_missing_permission">需要麦克风权限</string>

@@ -152,6 +152,8 @@ class Runner:
         finally:
             self.adb("shell", "input", "motionevent", "UP", "1200", "2350")
         deadline = time.monotonic() + self.args.timeout
+        preview_screenshot = None
+        preview_before_commit = False
         while time.monotonic() < deadline:
             lines = self.lines[offset:]
             if any("Voice input failed" in s or "MNN response error" in s for s in lines):
@@ -159,6 +161,12 @@ class Runner:
             queued = [s for s in lines if "Voice segment queued:" in s]
             commits = [s for s in lines if "Voice segment committed:" in s]
             stops = [s for s in lines if "AudioRecord: stop(" in s and "mActive:1" in s]
+            if preview_screenshot is None and any("Voice segment first preview:" in s for s in lines):
+                self.adb("shell", "screencap", "-p", "/sdcard/voice-acoustic-preview.png")
+                preview_before_commit = not any("Voice segment committed:" in s for s in self.lines[offset:])
+                preview_screenshot = str(self.output / f"preview-{index}.png")
+                self.adb("pull", "/sdcard/voice-acoustic-preview.png", preview_screenshot)
+                continue
             if queued and len(commits) == len(queued) and stops:
                 break
             if self.logcat.poll() is not None:
@@ -171,11 +179,16 @@ class Runner:
         committed_text = "".join(s.split(" text=", 1)[1].strip() for s in commits)
         requests = [s for s in lines if "MNN request:" in s]
         responses = [s for s in lines if "MNN response:" in s]
+        previews = [s for s in lines if "Voice segment first preview:" in s]
         result = dict(trial=index, text=text,
             ui_matches_commit=text == committed_text,
             content_match=self.comparable(text) == self.comparable(self.args.text),
+            preview_screenshot=preview_screenshot,
+            preview_before_commit=preview_before_commit,
             stop_to_commit_s=round(self.stamp(commits[-1]) - self.stamp(stops[-1]), 3),
             segment_count=len(queued),
+            stop_to_first_preview_s=round(self.stamp(previews[0]) - self.stamp(stops[-1]), 3) if previews else None,
+            first_preview_to_commit_s=round(self.stamp(commits[-1]) - self.stamp(previews[0]), 3) if previews else None,
             request_to_response_s=[round(self.stamp(b) - self.stamp(a), 3)
                 for a, b in zip(requests, responses)])
         self.results.append(result)
@@ -199,6 +212,9 @@ class Runner:
                 self.trial(index)
             if any(not r["ui_matches_commit"] or not r["content_match"] for r in self.results):
                 error = "Transcription verification failed; all completed trials are retained"
+            if self.args.require_preview and any(not r["preview_before_commit"] or not r["preview_screenshot"]
+                    for r in self.results):
+                error = "No preview screenshot was captured before commit"
         except Exception as exc:
             error = str(exc)
         finally:
@@ -226,4 +242,5 @@ if __name__ == "__main__":
     parser.add_argument("--trials", type=int, choices=range(1, 11), default=2)
     parser.add_argument("--timeout", type=float, default=60)
     parser.add_argument("--text", default=SAMPLE)
+    parser.add_argument("--require-preview", action="store_true")
     Runner(parser.parse_args()).execute()

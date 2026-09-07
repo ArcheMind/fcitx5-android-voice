@@ -3,8 +3,10 @@
  */
 package org.fcitx.fcitx5.android.input.voice
 
+import androidx.annotation.Keep
 import timber.log.Timber
 import java.io.File
+import java.nio.charset.CharacterCodingException
 
 object LocalMnnEngine {
     fun isReady() = LocalVoiceModel.isReady()
@@ -20,7 +22,8 @@ object LocalMnnEngine {
         audio: File,
         precedingText: String,
         hotwords: List<String>,
-        hasPreviousChunk: Boolean
+        hasPreviousChunk: Boolean,
+        onPartial: (String) -> Unit
     ): String {
         check(isReady()) { "The local MNN model is not installed" }
         val instruction = buildString {
@@ -40,8 +43,9 @@ object LocalMnnEngine {
             transcribeNative(
                 LocalVoiceModel.configFile().absolutePath,
                 audio.absolutePath,
-                instruction
-            ).trim()
+                instruction,
+                PartialOutput(onPartial)
+            ).decodeToString().trim()
         }.onSuccess {
             Timber.d("MNN response: %s", it)
         }.onFailure {
@@ -52,8 +56,23 @@ object LocalMnnEngine {
     private external fun transcribeNative(
         configPath: String,
         audioPath: String,
-        instruction: String
-    ): String
+        instruction: String,
+        output: PartialOutput
+    ): ByteArray
+
+    @Keep
+    class PartialOutput(private val accept: (String) -> Unit) {
+        fun onPartial(bytes: ByteArray) {
+            val text = try {
+                bytes.decodeToString(throwOnInvalidSequence = true)
+            } catch (_: CharacterCodingException) {
+                // A token can end inside a UTF-8 character; wait for the next snapshot.
+                return
+            }
+            Timber.d("MNN partial response: %s", text)
+            accept(text)
+        }
+    }
 
     private external fun prewarmNative(configPath: String)
 }

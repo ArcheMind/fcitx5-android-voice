@@ -21,6 +21,7 @@ import org.fcitx.fcitx5.android.input.broadcast.ReturnKeyDrawableComponent
 import org.fcitx.fcitx5.android.input.dependency.fcitx
 import org.fcitx.fcitx5.android.input.dependency.inputMethodService
 import org.fcitx.fcitx5.android.input.dependency.theme
+import org.fcitx.fcitx5.android.input.voice.VoiceState
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.popup.PopupActionListener
 import org.fcitx.fcitx5.android.input.popup.PopupComponent
@@ -157,6 +158,10 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
 
     override fun onReturnKeyDrawableUpdate(resourceId: Int) {
         currentKeyboard?.onReturnDrawableUpdate(resourceId)
+    }
+
+    override fun onVoiceStateUpdate(state: VoiceState) {
+        currentKeyboard?.onVoiceStateUpdate(state)
     }
 
     override fun onAttached() {
