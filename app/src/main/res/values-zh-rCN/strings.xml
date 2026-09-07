@@ -222,6 +222,12 @@
     <string name="voice_input_missing_zhipu_key">请在小企鹅语音输入法设置中填写智谱 API 密钥</string>
     <string name="voice_input_failed">语音输入失败：%1$s</string>
     <string name="voice_input_empty">没有识别到语音</string>
+    <string name="voice_input_keep_model_ready">保持本地语音模型就绪</string>
+    <string name="voice_input_keep_model_ready_summary">在空闲时提升进程优先级，使已加载的模型更可能留在内存中</string>
+    <string name="voice_input_keep_model_ready_unavailable">请先安装本地模型并启用本地引擎</string>
+    <string name="voice_input_model_notification_channel">语音模型保持</string>
+    <string name="voice_input_model_keeping_ready">正在保持本地语音模型就绪，以实现低延迟输入</string>
+    <string name="voice_input_release_model">释放模型</string>
     <string name="space_behavior_none">无</string>
     <string name="space_behavior_enumerate">轮换输入法</string>
     <string name="space_behavior_activate">在当前输入法和第一个输入法之间切换</string>

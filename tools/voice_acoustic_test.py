@@ -134,6 +134,11 @@ class Runner:
         return "".join(c for c in text.replace("三点", "3点")
             if not c.isspace() and not unicodedata.category(c).startswith("P"))
 
+    @staticmethod
+    def mnn_performance(line):
+        fields = dict(re.findall(r"(audio_us|prefill_us|decode_us|ttfa_us|sample_us|prompt_len|gen_seq_len)=(-?\d+)", line))
+        return {name: int(value) for name, value in fields.items()}
+
     def trial(self, index):
         if index > 1:
             root = self.ui()
@@ -180,6 +185,7 @@ class Runner:
         requests = [s for s in lines if "MNN request:" in s]
         responses = [s for s in lines if "MNN response:" in s]
         previews = [s for s in lines if "Voice segment first preview:" in s]
+        performances = [self.mnn_performance(s) for s in lines if "MNN performance:" in s]
         result = dict(trial=index, text=text,
             ui_matches_commit=text == committed_text,
             content_match=self.comparable(text) == self.comparable(self.args.text),
@@ -190,7 +196,8 @@ class Runner:
             stop_to_first_preview_s=round(self.stamp(previews[0]) - self.stamp(stops[-1]), 3) if previews else None,
             first_preview_to_commit_s=round(self.stamp(commits[-1]) - self.stamp(previews[0]), 3) if previews else None,
             request_to_response_s=[round(self.stamp(b) - self.stamp(a), 3)
-                for a, b in zip(requests, responses)])
+                for a, b in zip(requests, responses)],
+            mnn_performance=performances[-1] if performances else None)
         self.results.append(result)
         print(json.dumps(result, ensure_ascii=False), flush=True)
 
