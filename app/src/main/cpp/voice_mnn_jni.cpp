@@ -138,7 +138,7 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_prewarmNative(
 
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
-        JNIEnv* env, jobject, jstring config_path, jstring audio_path, jstring instruction, jstring system_prompt,
+        JNIEnv* env, jobject, jstring config_path, jstring instruction, jstring system_prompt,
         jobject callback) {
     try {
         auto callback_class = env->GetObjectClass(callback);
@@ -148,8 +148,7 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
         std::lock_guard<std::mutex> lock(engine_mutex);
         const auto config = fromJString(env, config_path);
         ensureLoaded(config, fromJString(env, system_prompt));
-        const auto prompt = fromJString(env, instruction) + "\n<audio>" +
-                            fromJString(env, audio_path) + "</audio>";
+        const auto prompt = fromJString(env, instruction);
         StreamingBuffer buffer(env, callback, method);
         std::ostream output(&buffer);
         engine->response(prompt, &output, "<eop>", 256);

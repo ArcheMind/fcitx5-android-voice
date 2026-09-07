@@ -23,12 +23,14 @@ object LocalMnnEngine {
 
     fun transcribe(
         audio: File,
-        precedingText: String,
+        context: String,
+        alreadyInput: String,
         hotwords: List<String>,
+        targetLanguage: String,
         onPartial: (String) -> Unit
     ): String {
         check(isReady()) { "The local MNN model is not installed" }
-        val instruction = VoiceTranscriptionClient().contextPrompt(precedingText)
+        val instruction = userMessage(context, alreadyInput, audio.absolutePath, targetLanguage)
         Timber.d(
             "MNN request: config=%s audio=%s prompt=%s",
             LocalVoiceModel.configFile().absolutePath,
@@ -38,7 +40,6 @@ object LocalMnnEngine {
         return runCatching {
             transcribeNative(
                 LocalVoiceModel.configFile().absolutePath,
-                audio.absolutePath,
                 instruction,
                 systemPrompt(hotwords),
                 PartialOutput(onPartial)
@@ -52,16 +53,39 @@ object LocalMnnEngine {
 
     private external fun transcribeNative(
         configPath: String,
-        audioPath: String,
         instruction: String,
         systemPrompt: String,
         output: PartialOutput
     ): ByteArray
 
     private fun systemPrompt(hotwords: List<String>) = buildString {
-        append("Speech-to-text only. Try your best to output the spoken words and natural punctuation. Never output anything else.")
+        append("You are a powerful voice input method. Your output will be committed as input.")
         append("\nHotwords: ")
         append(hotwords.joinToString(", "))
+    }
+
+    private fun userMessage(
+        context: String,
+        alreadyInput: String,
+        audioPath: String,
+        targetLanguage: String
+    ) = buildString {
+        val isChinese = targetLanguage.startsWith("zh")
+        append(if (isChinese) "上下文：" else "Context: ")
+        append(context.takeLast(MaxContextChars))
+        append(if (isChinese) "\n已输入：" else "\nAlready Inputed: ")
+        append(alreadyInput)
+        append(if (isChinese) "\n音频：" else "\nAudio: ")
+        append("<audio>")
+        append(audioPath)
+        append("</audio>")
+        append(
+            if (isChinese) {
+                "\n输出说出的内容并添加自然标点。不要输出任何其他内容。"
+            } else {
+                "\nOutput the spoken words with natural punctuation. Never output anything else."
+            }
+        )
     }
 
     @Keep
@@ -86,6 +110,8 @@ object LocalMnnEngine {
 
     private external fun prewarmNative(configPath: String, systemPrompt: String)
     private external fun unloadNative()
+
+    private const val MaxContextChars = 200
 }
 
 object LocalVoiceModel {

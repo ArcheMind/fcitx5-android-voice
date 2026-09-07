@@ -126,16 +126,23 @@ class VoiceInputController(
         committed: AtomicBoolean,
         targetLanguage: String
     ) = scope.launch {
-        var precedingText = service.getTextBeforeCursor()
+        val context = service.getTextBeforeCursor()
+        var alreadyInput = ""
         try {
             for (audio in recording.segments) {
                 try {
-                    val rawText = transcribe(audio, precedingText, currentGeneration, targetLanguage)
+                    val rawText = transcribe(
+                        audio,
+                        context,
+                        alreadyInput,
+                        currentGeneration,
+                        targetLanguage
+                    )
                     val text = VoiceTranscriptionNormalizer.normalize(rawText)
                     if (currentGeneration == generation && text.isNotBlank()) {
                         service.commitText(text)
                         previewText = ""
-                        precedingText += text
+                        alreadyInput += text
                         committed.set(true)
                         Timber.d("Voice segment committed: file=%s text=%s", audio.absolutePath, text)
                     }
@@ -157,7 +164,8 @@ class VoiceInputController(
 
     private suspend fun transcribe(
         audio: File,
-        precedingText: String,
+        context: String,
+        alreadyInput: String,
         currentGeneration: Long,
         targetLanguage: String
     ): String = coroutineScope {
@@ -178,7 +186,13 @@ class VoiceInputController(
         }
         try {
             withContext(Dispatchers.IO) {
-                client.transcribe(audio, precedingText, VoiceInputPreferences.hotwords(), targetLanguage) {
+                client.transcribe(
+                    audio,
+                    context,
+                    alreadyInput,
+                    VoiceInputPreferences.hotwords(),
+                    targetLanguage
+                ) {
                     updates.trySend(it)
                 }
             }

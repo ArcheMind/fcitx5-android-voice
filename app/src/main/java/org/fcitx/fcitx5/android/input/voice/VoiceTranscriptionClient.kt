@@ -26,14 +26,23 @@ import java.util.UUID
 class VoiceTranscriptionClient {
     suspend fun transcribe(
         audio: File,
-        precedingText: String,
+        context: String,
+        alreadyInput: String,
         hotwords: List<String>,
         targetLanguage: String,
         onPartial: (String) -> Unit
     ): String {
         if (VoiceInputPreferences.preferLocal() && LocalMnnEngine.isReady()) {
-            return LocalMnnEngine.transcribe(audio, precedingText, hotwords, onPartial)
+            return LocalMnnEngine.transcribe(
+                audio,
+                context,
+                alreadyInput,
+                hotwords,
+                targetLanguage,
+                onPartial
+            )
         }
+        val precedingText = context + alreadyInput
         return if (isCurrentTimeZoneChina()) {
             transcribeWithZhipu(audio, precedingText, hotwords)
         } else {
