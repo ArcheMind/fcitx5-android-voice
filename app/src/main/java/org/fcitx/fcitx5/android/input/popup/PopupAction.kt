@@ -15,8 +15,7 @@ sealed class PopupAction {
     data class PreviewAction(
         override val viewId: Int,
         val content: String,
-        val bounds: Rect,
-        val fitContent: Boolean = false
+        val bounds: Rect
     ) : PopupAction()
 
     data class PreviewUpdateAction(
@@ -26,6 +25,11 @@ sealed class PopupAction {
 
     data class DismissAction(
         override val viewId: Int
+    ) : PopupAction()
+
+    data class ShowCancelIndicatorAction(
+        override val viewId: Int,
+        val bounds: Rect
     ) : PopupAction()
 
     data class ShowKeyboardAction(

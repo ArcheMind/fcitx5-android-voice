@@ -194,14 +194,7 @@ class TextKeyboard(
                 space.mainText.text = context.getString(R.string.voice_input_recording_hint)
                 space.mainText.setTextColor(theme.accentKeyBackgroundColor)
                 space.img.visibility = View.GONE
-                onPopupAction(
-                    PopupAction.PreviewAction(
-                        space.id,
-                        context.getString(R.string.voice_input_listening),
-                        space.bounds,
-                        fitContent = true
-                    )
-                )
+                onPopupAction(PopupAction.ShowCancelIndicatorAction(space.id, space.bounds))
             }
             VoiceState.Processing -> {
                 space.mainText.text = context.getString(R.string.voice_input_processing)

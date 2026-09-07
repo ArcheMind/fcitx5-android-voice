@@ -5,9 +5,13 @@
 package org.fcitx.fcitx5.android.input.popup
 
 import android.graphics.Rect
+import android.graphics.drawable.ShapeDrawable
+import android.graphics.drawable.shapes.OvalShape
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -29,9 +33,6 @@ import splitties.views.dsl.core.add
 import splitties.views.dsl.core.frameLayout
 import splitties.views.dsl.core.lParams
 import java.util.LinkedList
-import kotlin.math.ceil
-import kotlin.math.max
-import kotlin.math.min
 
 class PopupComponent :
     UniqueComponent<PopupComponent>(), Dependent, ManagedHandler by managedHandler() {
@@ -42,6 +43,7 @@ class PopupComponent :
     private val punctuation: PunctuationComponent by manager.must()
 
     private val showingEntryUi = HashMap<Int, PopupEntryUi>()
+    private val showingCancelIndicators = HashMap<Int, View>()
     private val dismissJobs = HashMap<Int, Job>()
     private val freeEntryUi = LinkedList<PopupEntryUi>()
 
@@ -64,6 +66,10 @@ class PopupComponent :
     }
     private val hideThreshold = 100L
 
+    private val cancelIndicatorSize by lazy {
+        context.dp(36)
+    }
+
     private val rootLocation = intArrayOf(0, 0)
     private val rootBounds: Rect = Rect()
 
@@ -83,15 +89,13 @@ class PopupComponent :
         }
     }
 
-    private fun showPopup(viewId: Int, content: String, bounds: Rect, fitContent: Boolean = false) {
+    private fun showPopup(viewId: Int, content: String, bounds: Rect) {
         showingEntryUi[viewId]?.apply {
             dismissJobs[viewId]?.also {
                 dismissJobs.remove(viewId)?.cancel()
             }
             lastShowTime = System.currentTimeMillis()
             setText(content)
-            root.layoutParams.width = popupEntryWidth(this, content, fitContent)
-            root.requestLayout()
             return
         }
         val popup = (freeEntryUi.poll()
@@ -99,11 +103,10 @@ class PopupComponent :
             lastShowTime = System.currentTimeMillis()
             setText(content)
         }
-        val width = popupEntryWidth(popup, content, fitContent)
-        popup.root.layoutParams = FrameLayout.LayoutParams(width, popupHeight).apply {
+        popup.root.layoutParams = FrameLayout.LayoutParams(popupWidth, popupHeight).apply {
             // align popup bottom with key border bottom [^1]
             topMargin = bounds.bottom - popupHeight - keyBottomMargin
-            leftMargin = (bounds.left + bounds.right - width) / 2
+            leftMargin = (bounds.left + bounds.right - popupWidth) / 2
         }
         // make sure that popup.root does not have parent view before adding it under root container
         // it's wired that on some devices it would have a parent view despite it was newly created
@@ -117,15 +120,31 @@ class PopupComponent :
         showingEntryUi[viewId] = popup
     }
 
-    private fun popupEntryWidth(popup: PopupEntryUi, content: String, fitContent: Boolean): Int {
-        if (!fitContent) return popupWidth
-        val availableWidth = root.width.takeIf { it > 0 } ?: popupWidth
-        val contentWidth = ceil(popup.textView.paint.measureText(content)).toInt() + context.dp(24)
-        return min(max(popupWidth, contentWidth), availableWidth)
-    }
-
     private fun updatePopup(viewId: Int, content: String) {
         showingEntryUi[viewId]?.setText(content)
+    }
+
+    private fun showCancelIndicator(viewId: Int, bounds: Rect) {
+        if (showingCancelIndicators.containsKey(viewId)) return
+        showingEntryUi[viewId]?.let {
+            dismissJobs.remove(viewId)?.cancel()
+            dismissPopupEntry(viewId, it)
+        }
+        val indicator = TextView(context).apply {
+            text = "×"
+            textSize = 24f
+            gravity = Gravity.CENTER
+            setTextColor(theme.accentKeyTextColor)
+            background = ShapeDrawable(OvalShape()).apply {
+                paint.color = theme.accentKeyBackgroundColor
+            }
+            elevation = context.dp(2f)
+        }
+        root.add(indicator, lParams(cancelIndicatorSize, cancelIndicatorSize) {
+            leftMargin = (bounds.left + bounds.right - cancelIndicatorSize) / 2
+            topMargin = bounds.top - cancelIndicatorSize - context.dp(8)
+        })
+        showingCancelIndicators[viewId] = indicator
     }
 
     private fun showKeyboard(viewId: Int, keyboard: KeyDef.Popup.Keyboard, bounds: Rect) {
@@ -198,6 +217,7 @@ class PopupComponent :
 
     private fun dismissPopup(viewId: Int) {
         dismissPopupContainer(viewId)
+        showingCancelIndicators.remove(viewId)?.let(root::removeView)
         showingEntryUi[viewId]?.also {
             val timeLeft = it.lastShowTime + hideThreshold - System.currentTimeMillis()
             if (timeLeft <= 0L) {
@@ -236,6 +256,10 @@ class PopupComponent :
             root.removeView(container.root)
         }
         showingContainerUi.clear()
+        showingCancelIndicators.forEach { (_, indicator) ->
+            root.removeView(indicator)
+        }
+        showingCancelIndicators.clear()
         // too too
         showingEntryUi.forEach { (_, entry) ->
             root.removeView(entry.root)
@@ -249,8 +273,9 @@ class PopupComponent :
             when (this) {
                 is PopupAction.ChangeFocusAction -> outResult = changeFocus(viewId, x, y)
                 is PopupAction.DismissAction -> dismissPopup(viewId)
-                is PopupAction.PreviewAction -> showPopup(viewId, content, bounds, fitContent)
+                is PopupAction.PreviewAction -> showPopup(viewId, content, bounds)
                 is PopupAction.PreviewUpdateAction -> updatePopup(viewId, content)
+                is PopupAction.ShowCancelIndicatorAction -> showCancelIndicator(viewId, bounds)
                 is PopupAction.ShowKeyboardAction -> showKeyboard(viewId, keyboard, bounds)
                 is PopupAction.ShowMenuAction -> showMenu(viewId, menu, bounds)
                 is PopupAction.TriggerAction -> outAction = triggerFocused(viewId)
