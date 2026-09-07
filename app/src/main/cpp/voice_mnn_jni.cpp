@@ -14,12 +14,16 @@
 #include <llm/llm.hpp>
 
 using MNN::Transformer::Llm;
+using MNN::Transformer::ChatMessages;
+using MNN::Transformer::LlmStatus;
 
 namespace {
 std::mutex engine_mutex;
 std::unique_ptr<Llm> engine;
 std::string loaded_config;
 std::string loaded_system_prompt;
+ChatMessages chat_messages;
+bool chat_session_active = false;
 
 jbyteArray toBytes(JNIEnv* env, const std::string& text) {
     auto bytes = env->NewByteArray(static_cast<jsize>(text.size()));
@@ -62,6 +66,14 @@ void throwIllegalState(JNIEnv* env, const std::string& message) {
     env->ThrowNew(clazz, message.c_str());
 }
 
+void endChatSession() {
+    if (engine && chat_session_active) {
+        engine->endChatSession();
+    }
+    chat_messages.clear();
+    chat_session_active = false;
+}
+
 std::string jsonString(const std::string& value) {
     static constexpr char Hex[] = "0123456789abcdef";
     std::string result = "\"";
@@ -89,6 +101,7 @@ std::string jsonString(const std::string& value) {
 
 void ensureLoaded(const std::string& config, const std::string& system_prompt) {
     if (engine && loaded_config == config && loaded_system_prompt == system_prompt) return;
+    endChatSession();
     engine.reset(Llm::createLLM(config));
     if (!engine) {
         throw std::runtime_error("MNN could not create the local model");
@@ -119,6 +132,7 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_unloadNative(
     std::lock_guard<std::mutex> lock(engine_mutex);
     if (engine) {
         __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN unload: releasing engine");
+        endChatSession();
         engine.reset();
         loaded_config.clear();
         loaded_system_prompt.clear();
@@ -136,23 +150,50 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_prewarmNative(
     }
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_beginSessionNative(
+        JNIEnv* env, jobject, jstring config_path, jstring system_prompt, jstring context_message) {
+    try {
+        std::lock_guard<std::mutex> lock(engine_mutex);
+        endChatSession();
+        const auto systemPrompt = fromJString(env, system_prompt);
+        ensureLoaded(fromJString(env, config_path), systemPrompt);
+        if (!engine->beginChatSession()) {
+            throw std::runtime_error("MNN could not begin the transcription chat session");
+        }
+        chat_messages.emplace_back("system", systemPrompt);
+        chat_messages.emplace_back("user", fromJString(env, context_message));
+        chat_session_active = true;
+        __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN chat session started: context=%s",
+                            chat_messages.back().second.c_str());
+    } catch (const std::exception& error) {
+        endChatSession();
+        throwIllegalState(env, error.what());
+    }
+}
+
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
-        JNIEnv* env, jobject, jstring config_path, jstring instruction, jstring system_prompt,
-        jobject callback) {
+        JNIEnv* env, jobject, jstring audio_message, jobject callback) {
     try {
         auto callback_class = env->GetObjectClass(callback);
         auto method = env->GetMethodID(callback_class, "onPartial", "([B)V");
         env->DeleteLocalRef(callback_class);
         if (!method) return nullptr;
         std::lock_guard<std::mutex> lock(engine_mutex);
-        const auto config = fromJString(env, config_path);
-        ensureLoaded(config, fromJString(env, system_prompt));
-        const auto prompt = fromJString(env, instruction);
+        if (!engine || !chat_session_active) {
+            throw std::runtime_error("MNN transcription chat session is not active");
+        }
+        chat_messages.emplace_back("user", fromJString(env, audio_message));
+        __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN chat user message: %s",
+                            chat_messages.back().second.c_str());
         StreamingBuffer buffer(env, callback, method);
         std::ostream output(&buffer);
-        engine->response(prompt, &output, "<eop>", 256);
+        engine->responseChatSession(chat_messages, &output, "<eop>", 256);
         const auto* context = engine->getContext();
+        if (context && context->status == LlmStatus::INTERNAL_ERROR) {
+            throw std::runtime_error("MNN chat response failed: " + engine->getLog());
+        }
         if (context) {
             __android_log_print(
                 ANDROID_LOG_DEBUG,
@@ -172,4 +213,28 @@ Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_transcribeNative(
         throwIllegalState(env, error.what());
         return nullptr;
     }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_commitTranscriptNative(
+        JNIEnv* env, jobject, jstring transcript) {
+    try {
+        std::lock_guard<std::mutex> lock(engine_mutex);
+        if (!engine || !chat_session_active) {
+            throw std::runtime_error("MNN transcription chat session is not active");
+        }
+        chat_messages.emplace_back("assistant", fromJString(env, transcript));
+        __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN chat assistant message: %s",
+                            chat_messages.back().second.c_str());
+    } catch (const std::exception& error) {
+        throwIllegalState(env, error.what());
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_input_voice_LocalMnnEngine_endSessionNative(
+        JNIEnv*, jobject) {
+    std::lock_guard<std::mutex> lock(engine_mutex);
+    endChatSession();
+    __android_log_print(ANDROID_LOG_DEBUG, "fcitx5", "MNN chat session ended");
 }

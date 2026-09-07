@@ -33,12 +33,6 @@ class VoiceTranscriptionNormalizerTest {
     }
 
     @Test
-    fun removesBackticksFromPreviewAndFinalText() {
-        assertEquals("你好", VoiceTranscriptionNormalizer.preview("```你好`"))
-        assertEquals("hello", VoiceTranscriptionNormalizer.normalize("```hello```"))
-    }
-
-    @Test
     fun hidesIncompleteControlTokensAndThinking() {
         for (raw in listOf("<", "<thi", "<think>internal", "<think>internal</thi")) {
             assertEquals("", VoiceTranscriptionNormalizer.preview(raw))

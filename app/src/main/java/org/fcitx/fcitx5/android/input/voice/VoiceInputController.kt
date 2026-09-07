@@ -128,7 +128,11 @@ class VoiceInputController(
     ) = scope.launch {
         val context = service.getTextBeforeCursor()
         var alreadyInput = ""
+        var localSession = false
         try {
+            localSession = withContext(Dispatchers.IO) {
+                client.beginLocalSession(context, VoiceInputPreferences.hotwords(), targetLanguage)
+            }
             for (audio in recording.segments) {
                 try {
                     val rawText = transcribe(
@@ -136,9 +140,13 @@ class VoiceInputController(
                         context,
                         alreadyInput,
                         currentGeneration,
-                        targetLanguage
+                        targetLanguage,
+                        localSession
                     )
                     val text = VoiceTranscriptionNormalizer.normalize(rawText)
+                    if (localSession) {
+                        withContext(Dispatchers.IO) { client.commitLocalTranscript(text) }
+                    }
                     if (currentGeneration == generation && text.isNotBlank()) {
                         service.commitText(text)
                         previewText = ""
@@ -159,6 +167,10 @@ class VoiceInputController(
             throw cancelled
         } catch (failure: Throwable) {
             if (currentGeneration == generation) showFailure(failure)
+        } finally {
+            if (localSession) {
+                withContext(NonCancellable + Dispatchers.IO) { client.endLocalSession() }
+            }
         }
     }
 
@@ -167,7 +179,8 @@ class VoiceInputController(
         context: String,
         alreadyInput: String,
         currentGeneration: Long,
-        targetLanguage: String
+        targetLanguage: String,
+        localSession: Boolean
     ): String = coroutineScope {
         val updates = Channel<String>(Channel.CONFLATED)
         val reader = launch {
@@ -191,7 +204,8 @@ class VoiceInputController(
                     context,
                     alreadyInput,
                     VoiceInputPreferences.hotwords(),
-                    targetLanguage
+                    targetLanguage,
+                    localSession
                 ) {
                     updates.trySend(it)
                 }

@@ -24,23 +24,27 @@ import java.util.TimeZone
 import java.util.UUID
 
 class VoiceTranscriptionClient {
+    fun beginLocalSession(context: String, hotwords: List<String>, targetLanguage: String): Boolean {
+        if (!VoiceInputPreferences.preferLocal() || !LocalMnnEngine.isReady()) return false
+        LocalMnnEngine.beginSession(context, hotwords, targetLanguage)
+        return true
+    }
+
+    fun commitLocalTranscript(transcript: String) = LocalMnnEngine.commitTranscript(transcript)
+
+    fun endLocalSession() = LocalMnnEngine.endSession()
+
     suspend fun transcribe(
         audio: File,
         context: String,
         alreadyInput: String,
         hotwords: List<String>,
         targetLanguage: String,
+        localSession: Boolean,
         onPartial: (String) -> Unit
     ): String {
-        if (VoiceInputPreferences.preferLocal() && LocalMnnEngine.isReady()) {
-            return LocalMnnEngine.transcribe(
-                audio,
-                context,
-                alreadyInput,
-                hotwords,
-                targetLanguage,
-                onPartial
-            )
+        if (localSession) {
+            return LocalMnnEngine.transcribe(audio, targetLanguage, onPartial)
         }
         val precedingText = context + alreadyInput
         return if (isCurrentTimeZoneChina()) {

@@ -23,14 +23,11 @@ object LocalMnnEngine {
 
     fun transcribe(
         audio: File,
-        context: String,
-        alreadyInput: String,
-        hotwords: List<String>,
         targetLanguage: String,
         onPartial: (String) -> Unit
     ): String {
         check(isReady()) { "The local MNN model is not installed" }
-        val instruction = userMessage(context, alreadyInput, audio.absolutePath, targetLanguage)
+        val instruction = audioMessage(audio.absolutePath, targetLanguage)
         Timber.d(
             "MNN request: config=%s audio=%s prompt=%s",
             LocalVoiceModel.configFile().absolutePath,
@@ -39,9 +36,7 @@ object LocalMnnEngine {
         )
         return runCatching {
             transcribeNative(
-                LocalVoiceModel.configFile().absolutePath,
                 instruction,
-                systemPrompt(hotwords),
                 PartialOutput(onPartial)
             ).decodeToString().trim()
         }.onSuccess {
@@ -51,35 +46,45 @@ object LocalMnnEngine {
         }.getOrThrow()
     }
 
-    private external fun transcribeNative(
-        configPath: String,
-        instruction: String,
-        systemPrompt: String,
-        output: PartialOutput
-    ): ByteArray
+    private external fun transcribeNative(audioMessage: String, output: PartialOutput): ByteArray
 
-    private fun systemPrompt(hotwords: List<String>) = buildString {
-        append("Try your best to output the spoken words with natural punctuation.")
+    internal fun systemPrompt(hotwords: List<String>) = buildString {
+        append("Try your best to output the exact spoken words with natural punctuation.")
         append("\nHotwords: ")
         append(hotwords.joinToString(", "))
     }
 
-    private fun userMessage(
-        context: String,
-        alreadyInput: String,
-        audioPath: String,
-        targetLanguage: String
-    ) = buildString {
-        val isChinese = targetLanguage.startsWith("zh")
-        append(if (isChinese) "上下文：" else "Context: ")
-        append(context.takeLast(MaxContextChars))
-        append(if (isChinese) "\n已输入：" else "\nAlready Inputed: ")
-        append(alreadyInput)
-        append(if (isChinese) "\n音频：" else "\nAudio: ")
-        append("<audio>")
-        append(audioPath)
-        append("</audio>")
-        append(if (isChinese) "\n输出：\n```" else "\nOutput:\n```")
+    internal fun contextMessage(context: String, targetLanguage: String) =
+        (if (targetLanguage.startsWith("zh")) "上下文：" else "Context: ") +
+            context.takeLast(MaxContextChars)
+
+    internal fun audioMessage(audioPath: String, targetLanguage: String) =
+        (if (targetLanguage.startsWith("zh")) "音频：" else "Audio: ") +
+            "<audio>$audioPath</audio>"
+
+    fun beginSession(context: String, hotwords: List<String>, targetLanguage: String) {
+        check(isReady()) { "The local MNN model is not installed" }
+        val contextMessage = contextMessage(context, targetLanguage)
+        val systemPrompt = systemPrompt(hotwords)
+        Timber.d("MNN begin session request: system=%s context=%s", systemPrompt, contextMessage)
+        beginSessionNative(
+            LocalVoiceModel.configFile().absolutePath,
+            systemPrompt,
+            contextMessage
+        )
+        Timber.d("MNN begin session response: ready")
+    }
+
+    fun commitTranscript(transcript: String) {
+        Timber.d("MNN commit transcript request: transcript=%s", transcript)
+        commitTranscriptNative(transcript)
+        Timber.d("MNN commit transcript response: committed")
+    }
+
+    fun endSession() {
+        Timber.d("MNN end session request")
+        endSessionNative()
+        Timber.d("MNN end session response: ended")
     }
 
     @Keep
@@ -103,6 +108,9 @@ object LocalMnnEngine {
     }
 
     private external fun prewarmNative(configPath: String, systemPrompt: String)
+    private external fun beginSessionNative(configPath: String, systemPrompt: String, contextMessage: String)
+    private external fun commitTranscriptNative(transcript: String)
+    private external fun endSessionNative()
     private external fun unloadNative()
 
     private const val MaxContextChars = 200
