@@ -99,6 +99,8 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         inputView?.onVoiceStateUpdate(state)
     }
 
+    fun currentInputLanguage() = fcitx.runImmediately { inputMethodEntryCached.languageCode }
+
     private var jobs = Channel<Job>(capacity = Channel.UNLIMITED)
 
     private val cachedKeyEvents = LruCache<Int, KeyEvent>(78)

@@ -28,6 +28,7 @@ class VoiceTranscriptionClient {
         audio: File,
         precedingText: String,
         hotwords: List<String>,
+        targetLanguage: String,
         onPartial: (String) -> Unit
     ): String {
         if (VoiceInputPreferences.preferLocal() && LocalMnnEngine.isReady()) {
@@ -36,18 +37,19 @@ class VoiceTranscriptionClient {
         return if (isCurrentTimeZoneChina()) {
             transcribeWithZhipu(audio, precedingText, hotwords)
         } else {
-            transcribeWithOpenAI(audio, precedingText, hotwords)
+            transcribeWithOpenAI(audio, precedingText, hotwords, targetLanguage)
         }
     }
 
     private fun transcribeWithOpenAI(
         audio: File,
         precedingText: String,
-        hotwords: List<String>
+        hotwords: List<String>,
+        targetLanguage: String
     ): String {
         val key = VoiceInputPreferences.openAIKey()
         require(key.isNotEmpty()) { "OpenAI API key is not configured" }
-        val prompt = transcriptionPrompt(precedingText, hotwords)
+        val prompt = transcriptionPrompt(precedingText, hotwords, targetLanguage)
         val audioBase64 = Base64.encodeToString(audio.readBytes(), Base64.NO_WRAP)
         val body = buildJsonObject {
             put("model", JsonPrimitive("gpt-audio-1.5"))
@@ -124,10 +126,16 @@ class VoiceTranscriptionClient {
             ?.jsonPrimitive?.contentOrNull.orEmpty().trim()
     }
 
-    internal fun transcriptionPrompt(precedingText: String, hotwords: List<String>): String = buildString {
+    internal fun transcriptionPrompt(
+        precedingText: String,
+        hotwords: List<String>,
+        targetLanguage: String
+    ): String = buildString {
         append(contextPrompt(precedingText))
         append("\nHotwords: ")
         append(hotwords.joinToString(", "))
+        append("\nTarget language: ")
+        append(targetLanguage)
     }
 
     internal fun contextPrompt(precedingText: String) = "Context: ${precedingText.takeLast(MaxContextChars)}"

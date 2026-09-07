@@ -74,7 +74,12 @@ class VoiceInputController(
             val directory = service.cacheDir.resolve("voice-input/session-$currentGeneration")
             val recording = recorder.start(directory)
             val committed = AtomicBoolean(false)
-            val worker = startWorker(currentGeneration, recording, committed)
+            val worker = startWorker(
+                currentGeneration,
+                recording,
+                committed,
+                service.currentInputLanguage()
+            )
             session = ActiveSession(currentGeneration, recording, worker, committed)
             voiceState = VoiceState.Recording
         }.onFailure(::showFailure)
@@ -118,13 +123,14 @@ class VoiceInputController(
     private fun startWorker(
         currentGeneration: Long,
         recording: WavRecorder.Session,
-        committed: AtomicBoolean
+        committed: AtomicBoolean,
+        targetLanguage: String
     ) = scope.launch {
         var precedingText = service.getTextBeforeCursor()
         try {
             for (audio in recording.segments) {
                 try {
-                    val rawText = transcribe(audio, precedingText, currentGeneration)
+                    val rawText = transcribe(audio, precedingText, currentGeneration, targetLanguage)
                     val text = VoiceTranscriptionNormalizer.normalize(rawText)
                     if (currentGeneration == generation && text.isNotBlank()) {
                         service.commitText(text)
@@ -152,7 +158,8 @@ class VoiceInputController(
     private suspend fun transcribe(
         audio: File,
         precedingText: String,
-        currentGeneration: Long
+        currentGeneration: Long,
+        targetLanguage: String
     ): String = coroutineScope {
         val updates = Channel<String>(Channel.CONFLATED)
         val reader = launch {
@@ -171,7 +178,7 @@ class VoiceInputController(
         }
         try {
             withContext(Dispatchers.IO) {
-                client.transcribe(audio, precedingText, VoiceInputPreferences.hotwords()) {
+                client.transcribe(audio, precedingText, VoiceInputPreferences.hotwords(), targetLanguage) {
                     updates.trySend(it)
                 }
             }

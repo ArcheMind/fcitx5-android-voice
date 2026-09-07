@@ -29,6 +29,9 @@ import splitties.views.dsl.core.add
 import splitties.views.dsl.core.frameLayout
 import splitties.views.dsl.core.lParams
 import java.util.LinkedList
+import kotlin.math.ceil
+import kotlin.math.max
+import kotlin.math.min
 
 class PopupComponent :
     UniqueComponent<PopupComponent>(), Dependent, ManagedHandler by managedHandler() {
@@ -80,13 +83,15 @@ class PopupComponent :
         }
     }
 
-    private fun showPopup(viewId: Int, content: String, bounds: Rect) {
+    private fun showPopup(viewId: Int, content: String, bounds: Rect, fitContent: Boolean = false) {
         showingEntryUi[viewId]?.apply {
             dismissJobs[viewId]?.also {
                 dismissJobs.remove(viewId)?.cancel()
             }
             lastShowTime = System.currentTimeMillis()
             setText(content)
+            root.layoutParams.width = popupEntryWidth(this, content, fitContent)
+            root.requestLayout()
             return
         }
         val popup = (freeEntryUi.poll()
@@ -94,10 +99,11 @@ class PopupComponent :
             lastShowTime = System.currentTimeMillis()
             setText(content)
         }
-        popup.root.layoutParams = FrameLayout.LayoutParams(popupWidth, popupHeight).apply {
+        val width = popupEntryWidth(popup, content, fitContent)
+        popup.root.layoutParams = FrameLayout.LayoutParams(width, popupHeight).apply {
             // align popup bottom with key border bottom [^1]
             topMargin = bounds.bottom - popupHeight - keyBottomMargin
-            leftMargin = (bounds.left + bounds.right - popupWidth) / 2
+            leftMargin = (bounds.left + bounds.right - width) / 2
         }
         // make sure that popup.root does not have parent view before adding it under root container
         // it's wired that on some devices it would have a parent view despite it was newly created
@@ -109,6 +115,13 @@ class PopupComponent :
             root.addView(popup.root)
         }
         showingEntryUi[viewId] = popup
+    }
+
+    private fun popupEntryWidth(popup: PopupEntryUi, content: String, fitContent: Boolean): Int {
+        if (!fitContent) return popupWidth
+        val availableWidth = root.width.takeIf { it > 0 } ?: popupWidth
+        val contentWidth = ceil(popup.textView.paint.measureText(content)).toInt() + context.dp(24)
+        return min(max(popupWidth, contentWidth), availableWidth)
     }
 
     private fun updatePopup(viewId: Int, content: String) {
@@ -236,7 +249,7 @@ class PopupComponent :
             when (this) {
                 is PopupAction.ChangeFocusAction -> outResult = changeFocus(viewId, x, y)
                 is PopupAction.DismissAction -> dismissPopup(viewId)
-                is PopupAction.PreviewAction -> showPopup(viewId, content, bounds)
+                is PopupAction.PreviewAction -> showPopup(viewId, content, bounds, fitContent)
                 is PopupAction.PreviewUpdateAction -> updatePopup(viewId, content)
                 is PopupAction.ShowKeyboardAction -> showKeyboard(viewId, keyboard, bounds)
                 is PopupAction.ShowMenuAction -> showMenu(viewId, menu, bounds)

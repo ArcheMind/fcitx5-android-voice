@@ -198,7 +198,8 @@ class TextKeyboard(
                     PopupAction.PreviewAction(
                         space.id,
                         context.getString(R.string.voice_input_listening),
-                        space.bounds
+                        space.bounds,
+                        fitContent = true
                     )
                 )
             }
