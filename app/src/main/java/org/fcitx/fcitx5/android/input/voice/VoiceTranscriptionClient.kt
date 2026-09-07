@@ -134,7 +134,7 @@ class VoiceTranscriptionClient {
         append(contextPrompt(precedingText))
         append("\nHotwords: ")
         append(hotwords.joinToString(", "))
-        append("\nTarget language: ")
+        append("\nOutput language: ")
         append(targetLanguage)
     }
 
