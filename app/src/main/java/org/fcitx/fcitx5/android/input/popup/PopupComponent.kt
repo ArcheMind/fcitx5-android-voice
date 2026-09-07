@@ -67,7 +67,7 @@ class PopupComponent :
     private val hideThreshold = 100L
 
     private val cancelIndicatorSize by lazy {
-        context.dp(36)
+        context.dp(44)
     }
 
     private val rootLocation = intArrayOf(0, 0)
@@ -143,7 +143,7 @@ class PopupComponent :
         root.apply {
             add(indicator, lParams(cancelIndicatorSize, cancelIndicatorSize) {
                 leftMargin = (bounds.left + bounds.right - cancelIndicatorSize) / 2
-                topMargin = bounds.top - cancelIndicatorSize - context.dp(8)
+                topMargin = bounds.top - cancelIndicatorSize - context.dp(16)
             })
         }
         showingCancelIndicators[viewId] = indicator
