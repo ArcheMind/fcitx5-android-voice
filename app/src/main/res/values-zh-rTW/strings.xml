@@ -316,6 +316,7 @@
     <string name="emoji_skin_tone_type_6">🏿 深膚色 (Type-6)</string>
     <string name="hide_unsupported_emojis">隱藏不支援的表情</string>
     <string name="preferred_voice_input">首選語音輸入</string>
-    <string name="voice_input_recording_hint">錄音中（↑取消）</string>
+    <string name="voice_input_recording_hint">錄音中…</string>
     <string name="voice_input_processing">轉寫中…</string>
+    <string name="voice_input_listening">向上滑動取消</string>
 </resources>

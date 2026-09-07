@@ -318,6 +318,7 @@
     <string name="key_border_stroke">Включить обводку для границы клавиши</string>
     <string name="preferred_voice_input">Предпочтительный голосовой ввод</string>
     <string name="edit_text_playground">Тестовое поле EditText</string>
-    <string name="voice_input_recording_hint">Запись (↑ отмена)</string>
+    <string name="voice_input_recording_hint">Запись…</string>
     <string name="voice_input_processing">Распознавание…</string>
+    <string name="voice_input_listening">Проведите вверх для отмены</string>
 </resources>

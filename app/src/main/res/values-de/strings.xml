@@ -161,6 +161,7 @@
     <string name="following_system_settings">Wie Systemeinstellungen</string>
     <string name="button_sound">Ton bei Tastendruck</string>
     <string name="button_sound_volume">Ton Tastendruck Lautstärke</string>
-    <string name="voice_input_recording_hint">Aufnahme läuft (↑ zum Abbrechen)</string>
+    <string name="voice_input_recording_hint">Aufnahme läuft…</string>
     <string name="voice_input_processing">Transkribieren…</string>
+    <string name="voice_input_listening">Nach oben wischen zum Abbrechen</string>
 </resources>

@@ -254,6 +254,7 @@
     <string name="flip_horizontally">左右反転</string>
     <string name="flip_vertically">上下反転</string>
     <string name="crop">切り取り</string>
-    <string name="voice_input_recording_hint">録音中（↑でキャンセル）</string>
+    <string name="voice_input_recording_hint">録音中…</string>
     <string name="voice_input_processing">文字起こし中…</string>
+    <string name="voice_input_listening">上にスワイプしてキャンセル</string>
 </resources>

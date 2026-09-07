@@ -124,6 +124,7 @@
     <string name="i_do_not_need_it">No lo necesito</string>
     <string name="grant_permission">Otorgar permiso</string>
     <string name="update_table">Actualizar tabla</string>
-    <string name="voice_input_recording_hint">Grabando (↑ para cancelar)</string>
+    <string name="voice_input_recording_hint">Grabando…</string>
     <string name="voice_input_processing">Transcribiendo…</string>
+    <string name="voice_input_listening">Desliza hacia arriba para cancelar</string>
 </resources>

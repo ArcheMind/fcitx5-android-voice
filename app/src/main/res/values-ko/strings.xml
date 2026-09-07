@@ -91,6 +91,7 @@
     <string name="quickphrase_phrase">구문</string>
     <string name="reload_config">구성 새로고침</string>
     <string name="input_method_options">입력기 옵션</string>
-    <string name="voice_input_recording_hint">녹음 중(↑ 취소)</string>
+    <string name="voice_input_recording_hint">녹음 중…</string>
     <string name="voice_input_processing">변환 중…</string>
+    <string name="voice_input_listening">위로 밀어 취소</string>
 </resources>

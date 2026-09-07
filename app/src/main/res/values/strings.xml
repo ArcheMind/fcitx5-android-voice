@@ -214,7 +214,7 @@
     <string name="voice_input_key_saved">Saved</string>
     <string name="voice_input_key_missing">Not configured</string>
     <string name="voice_input_listening">Listening… swipe up to cancel</string>
-    <string name="voice_input_recording_hint">Recording (↑ cancel)</string>
+    <string name="voice_input_recording_hint">Recording…</string>
     <string name="voice_input_cancelled">Voice input cancelled</string>
     <string name="voice_input_processing">Transcribing…</string>
     <string name="voice_input_missing_permission">Microphone permission is required</string>

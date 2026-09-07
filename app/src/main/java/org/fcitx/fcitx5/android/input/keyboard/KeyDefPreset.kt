@@ -205,9 +205,10 @@ class LanguageKey : KeyDef(
 )
 
 class SpaceKey : KeyDef(
-    Appearance.Text(
+    Appearance.ImageText(
         displayText = " ",
         textSize = 13f,
+        src = R.drawable.ic_baseline_keyboard_voice_24,
         percentWidth = 0f,
         border = Border.Special,
         viewId = R.id.button_space,

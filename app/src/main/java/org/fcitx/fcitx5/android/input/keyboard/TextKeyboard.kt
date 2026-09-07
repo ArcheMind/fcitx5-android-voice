@@ -17,6 +17,7 @@ import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.voice.VoiceState
+import org.fcitx.fcitx5.android.input.voice.VoiceInputPreferences
 import org.fcitx.fcitx5.android.input.popup.PopupAction
 import splitties.views.imageResource
 
@@ -81,7 +82,7 @@ class TextKeyboard(
     val backspace: ImageKeyView by lazy { findViewById(R.id.button_backspace) }
     val quickphrase: ImageKeyView by lazy { findViewById(R.id.button_quickphrase) }
     val lang: ImageKeyView by lazy { findViewById(R.id.button_lang) }
-    val space: TextKeyView by lazy { findViewById(R.id.button_space) }
+    val space: ImageTextKeyView by lazy { findViewById(R.id.button_space) }
     val `return`: ImageKeyView by lazy { findViewById(R.id.button_return) }
 
     private val showLangSwitchKey = AppPrefs.getInstance().keyboard.showLangSwitchKey
@@ -174,6 +175,7 @@ class TextKeyboard(
         }
         savedSpaceText = text
         space.mainText.text = text
+        updateVoiceInputIcon()
         if (capsState != CapsState.None) {
             switchCapsState()
         }
@@ -184,15 +186,36 @@ class TextKeyboard(
             VoiceState.Idle -> {
                 space.mainText.text = savedSpaceText
                 space.mainText.setTextColor(theme.keyTextColor)
+                space.img.visibility = View.VISIBLE
+                updateVoiceInputIcon()
+                onPopupAction(PopupAction.DismissAction(space.id))
             }
             VoiceState.Recording -> {
                 space.mainText.text = context.getString(R.string.voice_input_recording_hint)
                 space.mainText.setTextColor(theme.accentKeyBackgroundColor)
+                space.img.visibility = View.GONE
+                onPopupAction(
+                    PopupAction.PreviewAction(
+                        space.id,
+                        context.getString(R.string.voice_input_listening),
+                        space.bounds
+                    )
+                )
             }
             VoiceState.Processing -> {
                 space.mainText.text = context.getString(R.string.voice_input_processing)
                 space.mainText.setTextColor(theme.altKeyTextColor)
+                space.img.visibility = View.GONE
+                onPopupAction(PopupAction.DismissAction(space.id))
             }
+        }
+    }
+
+    private fun updateVoiceInputIcon() {
+        space.img.imageResource = if (VoiceInputPreferences.isAvailable()) {
+            R.drawable.ic_baseline_keyboard_voice_24
+        } else {
+            R.drawable.ic_baseline_keyboard_voice_off_24
         }
     }
 

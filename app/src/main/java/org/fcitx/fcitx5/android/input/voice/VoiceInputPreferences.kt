@@ -28,6 +28,11 @@ object VoiceInputPreferences {
 
     fun zhipuKey() = preferences.getString(ZhipuKey, "").orEmpty().trim()
 
+    fun isAvailable() =
+        (preferLocal() && LocalMnnEngine.isReady()) ||
+            if (VoiceTranscriptionClient.isCurrentTimeZoneChina()) zhipuKey().isNotEmpty()
+            else openAIKey().isNotEmpty()
+
     fun hotwords(): List<String> = preferences.getString(Hotwords, "").orEmpty()
         .split(',', '\n')
         .map(String::trim)
