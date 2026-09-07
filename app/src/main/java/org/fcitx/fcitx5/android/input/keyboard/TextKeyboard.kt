@@ -190,7 +190,7 @@ class TextKeyboard(
                 space.mainText.setTextColor(theme.accentKeyBackgroundColor)
             }
             VoiceState.Processing -> {
-                space.mainText.text = "···"
+                space.mainText.text = context.getString(R.string.voice_input_processing)
                 space.mainText.setTextColor(theme.altKeyTextColor)
             }
         }

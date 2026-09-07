@@ -95,6 +95,11 @@ class MainFragment : PaddingPreferenceFragment() {
                     SettingsRoute.VirtualKeyboard
                 )
                 addDestinationPreference(
+                    R.string.voice_input_settings,
+                    R.drawable.ic_baseline_keyboard_24,
+                    SettingsRoute.VoiceInput
+                )
+                addDestinationPreference(
                     R.string.candidates_window,
                     R.drawable.ic_baseline_list_alt_24,
                     SettingsRoute.CandidatesWindow
