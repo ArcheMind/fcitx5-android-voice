@@ -16,7 +16,7 @@ class LocalMnnEnginePromptTest {
                 "-> \"What is one plus one?\"\n" +
                 "<- \"然后给妈妈\"\n" +
                 "-> \"然后给妈妈\"\n" +
-                "<- \"打一个电话，问要不要带伞。\"\n" +
+                "<- \"打一个电话问要不要带伞。\"\n" +
                 "-> \"打一个电话，问要不要带伞。\"\n" +
                 "Output only the spoken words with punctuation",
             LocalMnnEngine.systemPrompt()

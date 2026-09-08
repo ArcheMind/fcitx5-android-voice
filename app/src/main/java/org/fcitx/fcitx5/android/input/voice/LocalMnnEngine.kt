@@ -51,11 +51,11 @@ object LocalMnnEngine {
     internal fun systemPrompt() = """
         Transcribe audio exactly.
         Examples:
-        <- "What is one plus one?"
+        <- "What is one plus one"
         -> "What is one plus one?"
         <- "然后给妈妈"
         -> "然后给妈妈"
-        <- "打一个电话，问要不要带伞。"
+        <- "打一个电话问要不要带伞。"
         -> "打一个电话，问要不要带伞。"
         Output only the spoken words with punctuation
     """.trimIndent()
