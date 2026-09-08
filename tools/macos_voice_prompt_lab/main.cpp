@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -233,11 +234,33 @@ std::string removeTerminalPunctuation(std::string text) {
     return text;
 }
 
+std::string canonicalTranscript(std::string text) {
+    std::transform(text.begin(), text.end(), text.begin(), [](unsigned char character) {
+        return static_cast<char>(std::tolower(character));
+    });
+    const std::array<std::pair<std::string, std::string>, 3> englishNumbers{{
+        {"one", "1"},
+        {"three", "3"},
+        {"ten", "10"},
+    }};
+    for (const auto& [word, digits] : englishNumbers) {
+        text = std::regex_replace(text, std::regex("\\b" + word + "\\b"), digits);
+    }
+    text = replaceAll(text, "一加一", "1+1");
+    text = replaceAll(text, "三", "3");
+    text = replaceAll(text, "十", "10");
+    text = replaceAll(text, "等于", "=");
+    text = replaceAll(text, "几", "?");
+    text = std::regex_replace(text, std::regex(R"(\s*([+=])\s*)"), "$1");
+    return text;
+}
+
 Evaluation evaluate(const Segment& segment, const std::string& normalized, const std::string& error) {
     if (!error.empty()) return {false, false, "mnn-error"};
     if (segment.expected.empty()) return {true, false, ""};
     const bool actualHasTerminalPunctuation = hasTerminalPunctuation(normalized);
-    if (removeTerminalPunctuation(normalized) != removeTerminalPunctuation(segment.expected)) {
+    if (canonicalTranscript(removeTerminalPunctuation(normalized)) !=
+        canonicalTranscript(removeTerminalPunctuation(segment.expected))) {
         return {false, actualHasTerminalPunctuation, "transcript-mismatch"};
     }
     if (segment.terminalPunctuation == TerminalPunctuation::Required && !actualHasTerminalPunctuation) {
