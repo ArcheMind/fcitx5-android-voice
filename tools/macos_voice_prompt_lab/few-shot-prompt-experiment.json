@@ -4,8 +4,8 @@
   "prompts": [
     {
       "id": "user-few-shot",
-      "system_prompt_template": "Transcribe audio exactly.\nExamples:\n<- \"What is one plus one?\"\n-> \"What is one plus one?\"\n<- \"然后给妈妈\"\n-> \"然后给妈妈\"\n<- \"打一个电话问要不要带伞。\"\n-> \"打一个电话，问要不要带伞。\"\nOutput only the spoken words with punctuation",
-      "context_template": "用户常用词: {hotwords}\n上下文：{context}",
+      "system_prompt_template": "Transcribe audio, output the spoken words with punctuation\nExamples:\n<- \"one plus one?\"\n-> \"one plus one?\"\n<- \"给妈妈\"\n-> \"给妈妈\"\n<- \"打电话问要不要伞\"\n-> \"打电话，问要不要伞。\"",
+      "context_template": "用户词: {hotwords}\n上下文：{context}",
       "audio_template": "音频：<audio>{audio}</audio>"
     }
   ],

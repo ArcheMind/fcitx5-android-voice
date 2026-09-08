@@ -10,15 +10,14 @@ class LocalMnnEnginePromptTest {
     @Test
     fun buildsFixedSystemPrompt() {
         assertEquals(
-            "Transcribe audio exactly.\n" +
+            "Transcribe audio, output the spoken words with punctuation\n" +
                 "Examples:\n" +
-                "<- \"What is one plus one\"\n" +
-                "-> \"What is one plus one?\"\n" +
-                "<- \"然后给妈妈\"\n" +
-                "-> \"然后给妈妈\"\n" +
-                "<- \"打一个电话问要不要带伞。\"\n" +
-                "-> \"打一个电话，问要不要带伞。\"\n" +
-                "Output only the spoken words with punctuation",
+                "<- \"one plus one?\"\n" +
+                "-> \"one plus one?\"\n" +
+                "<- \"给妈妈\"\n" +
+                "-> \"给妈妈\"\n" +
+                "<- \"打电话问要不要伞\"\n" +
+                "-> \"打电话，问要不要伞。\"",
             LocalMnnEngine.systemPrompt()
         )
     }
@@ -26,7 +25,7 @@ class LocalMnnEnginePromptTest {
     @Test
     fun buildsEnglishMessages() {
         assertEquals(
-            "User hotwords: OpenAI, Fcitx\nContext: preceding text",
+            "User words: OpenAI, Fcitx\nContext: preceding text",
             LocalMnnEngine.contextMessage("preceding text", listOf("OpenAI", "Fcitx"), "en")
         )
         assertEquals(
@@ -38,7 +37,7 @@ class LocalMnnEnginePromptTest {
     @Test
     fun buildsChineseMessages() {
         assertEquals(
-            "用户常用词: OpenAI, Fcitx\n上下文：前文",
+            "用户词: OpenAI, Fcitx\n上下文：前文",
             LocalMnnEngine.contextMessage("前文", listOf("OpenAI", "Fcitx"), "zh_CN")
         )
         assertEquals(

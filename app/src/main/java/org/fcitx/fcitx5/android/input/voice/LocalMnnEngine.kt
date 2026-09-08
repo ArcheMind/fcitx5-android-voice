@@ -49,24 +49,23 @@ object LocalMnnEngine {
     private external fun transcribeNative(audioMessage: String, output: PartialOutput): ByteArray
 
     internal fun systemPrompt() = """
-        Transcribe audio exactly.
+        Transcribe audio, output the spoken words with punctuation
         Examples:
-        <- "What is one plus one"
-        -> "What is one plus one?"
-        <- "然后给妈妈"
-        -> "然后给妈妈"
-        <- "打一个电话问要不要带伞。"
-        -> "打一个电话，问要不要带伞。"
-        Output only the spoken words with punctuation
+        <- "one plus one?"
+        -> "one plus one?"
+        <- "给妈妈"
+        -> "给妈妈"
+        <- "打电话问要不要伞"
+        -> "打电话，问要不要伞。"
     """.trimIndent()
 
     internal fun contextMessage(context: String, hotwords: List<String>, targetLanguage: String) = buildString {
         if (targetLanguage.startsWith("zh")) {
-            append("用户常用词: ")
+            append("用户词: ")
             append(hotwords.joinToString(", "))
             append("\n上下文：")
         } else {
-            append("User hotwords: ")
+            append("User words: ")
             append(hotwords.joinToString(", "))
             append("\nContext: ")
         }
