@@ -16,7 +16,7 @@ object LocalMnnEngine {
         Timber.d("MNN prewarm request: config=%s", LocalVoiceModel.configFile().absolutePath)
         prewarmNative(
             LocalVoiceModel.configFile().absolutePath,
-            systemPrompt(VoiceInputPreferences.hotwords())
+            systemPrompt()
         )
         Timber.d("MNN prewarm response: ready")
     }
@@ -48,15 +48,30 @@ object LocalMnnEngine {
 
     private external fun transcribeNative(audioMessage: String, output: PartialOutput): ByteArray
 
-    internal fun systemPrompt(hotwords: List<String>) = buildString {
-        append("Try your best to output the exact spoken words with natural punctuation.")
-        append("\nHotwords: ")
-        append(hotwords.joinToString(", "))
-    }
+    internal fun systemPrompt() = """
+        Transcribe audio exactly.
+        Examples:
+        <- "What is one plus one?"
+        -> "What is one plus one?"
+        <- "然后给妈妈"
+        -> "然后给妈妈"
+        <- "打一个电话，问要不要带伞。"
+        -> "打一个电话，问要不要带伞。"
+        Output only the spoken words with punctuation
+    """.trimIndent()
 
-    internal fun contextMessage(context: String, targetLanguage: String) =
-        (if (targetLanguage.startsWith("zh")) "上下文：" else "Context: ") +
-            context.takeLast(MaxContextChars)
+    internal fun contextMessage(context: String, hotwords: List<String>, targetLanguage: String) = buildString {
+        if (targetLanguage.startsWith("zh")) {
+            append("用户常用词: ")
+            append(hotwords.joinToString(", "))
+            append("\n上下文：")
+        } else {
+            append("User hotwords: ")
+            append(hotwords.joinToString(", "))
+            append("\nContext: ")
+        }
+        append(context.takeLast(MaxContextChars))
+    }
 
     internal fun audioMessage(audioPath: String, targetLanguage: String) =
         (if (targetLanguage.startsWith("zh")) "音频：" else "Audio: ") +
@@ -64,8 +79,8 @@ object LocalMnnEngine {
 
     fun beginSession(context: String, hotwords: List<String>, targetLanguage: String) {
         check(isReady()) { "The local MNN model is not installed" }
-        val contextMessage = contextMessage(context, targetLanguage)
-        val systemPrompt = systemPrompt(hotwords)
+        val contextMessage = contextMessage(context, hotwords, targetLanguage)
+        val systemPrompt = systemPrompt()
         Timber.d("MNN begin session request: system=%s context=%s", systemPrompt, contextMessage)
         beginSessionNative(
             LocalVoiceModel.configFile().absolutePath,
