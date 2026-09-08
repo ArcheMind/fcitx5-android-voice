@@ -12,7 +12,7 @@ class LocalMnnEnginePromptTest {
         assertEquals(
             "Transcribe audio exactly.\n" +
                 "Examples:\n" +
-                "<- \"What is one plus one?\"\n" +
+                "<- \"What is one plus one\"\n" +
                 "-> \"What is one plus one?\"\n" +
                 "<- \"然后给妈妈\"\n" +
                 "-> \"然后给妈妈\"\n" +
