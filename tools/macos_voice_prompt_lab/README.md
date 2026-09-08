@@ -44,9 +44,9 @@ attempts.
 Each JSON Lines result preserves the prompt/case IDs, one-based segment index, fully rendered messages,
 WAV path, reference text, raw generation, normalized text, any MNN error,
 wall-clock duration, and MNN audio/prefill/decode/TTFA timings. When `expected`
-is set, `matches_expected` and `failure` provide an explicit verdict. Expected
-transcripts include their required terminal punctuation. Text that otherwise
-matches but omits that punctuation is a `missing-terminal-punctuation` failure.
+is set, `matches_expected` and `failure` provide an explicit verdict. A segment
+can set `terminal_punctuation` to `required` or `forbidden`; the check accepts
+any terminal punctuation character and only requires or forbids its presence.
 The runner logs the raw MNN request and response to stderr.
 
 ## Prompt experiment schema
@@ -79,7 +79,8 @@ contrast. It repeats each prompt/case pair three times.
 an existing Context message and three audio segments. The runner sends each
 case as Android does: one System message, one Context user message, then an
 Audio user message and normalized assistant message for every segment. Its
-expected text includes terminal punctuation. The JSONL has one `segment` record
-per audio input and one `case-summary` record per independent session; the
-latter compares all committed segments concatenated exactly as Android places
-them in the input field.
+includes both independent sentences, which require punctuation, and a sentence
+split across two audio segments, whose first segment forbids it. The JSONL has
+one `segment` record per audio input and one `case-summary` record per
+independent session; the latter preserves Android's concatenated text and
+reports whether every segment satisfies its text and boundary requirement.

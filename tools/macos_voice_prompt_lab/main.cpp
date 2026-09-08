@@ -2,6 +2,8 @@
 
 #include <rapidjson/document.h>
 
+#include <algorithm>
+#include <array>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -27,9 +29,16 @@ struct Prompt {
     std::string audioTemplate;
 };
 
+enum class TerminalPunctuation {
+    Any,
+    Required,
+    Forbidden,
+};
+
 struct Segment {
     fs::path audio;
     std::string expected;
+    TerminalPunctuation terminalPunctuation;
 };
 
 struct TestCase {
@@ -49,7 +58,7 @@ struct Experiment {
 
 struct Evaluation {
     bool matches;
-    bool missingTerminalPunctuation;
+    bool hasTerminalPunctuation;
     std::string failure;
 };
 
@@ -90,6 +99,14 @@ size_t optionalPositiveSize(const rapidjson::Value& object, const char* name, si
     return static_cast<size_t>(value.GetUint64());
 }
 
+TerminalPunctuation terminalPunctuation(const rapidjson::Value& object) {
+    const auto value = optionalString(object, "terminal_punctuation");
+    if (value.empty() || value == "any") return TerminalPunctuation::Any;
+    if (value == "required") return TerminalPunctuation::Required;
+    if (value == "forbidden") return TerminalPunctuation::Forbidden;
+    throw std::runtime_error("terminal_punctuation must be any, required, or forbidden");
+}
+
 fs::path resolve(const fs::path& root, const std::string& value) {
     const fs::path path(value);
     return path.is_absolute() ? path : root / path;
@@ -128,7 +145,7 @@ Experiment parseExperiment(const fs::path& path, const fs::path& modelOverride) 
         }
         for (const auto& segment : value["segments"].GetArray()) {
             testCase.segments.push_back({resolve(root, requiredString(segment, "audio")),
-                                         optionalString(segment, "expected")});
+                                         optionalString(segment, "expected"), terminalPunctuation(segment)});
         }
         experiment.cases.push_back(std::move(testCase));
     }
@@ -188,25 +205,48 @@ std::string normalize(std::string text) {
     return text;
 }
 
+const std::array<std::string, 12>& terminalPunctuation() {
+    static const std::array<std::string, 12> punctuation{
+        ".", ",", "!", "?", ";", ":", "，", "。", "！", "？", "；", "：",
+    };
+    return punctuation;
+}
+
+const std::string* terminalPunctuationSuffix(const std::string& text) {
+    for (const auto& punctuation : terminalPunctuation()) {
+        if (text.size() >= punctuation.size() &&
+            text.compare(text.size() - punctuation.size(), punctuation.size(), punctuation) == 0) {
+            return &punctuation;
+        }
+    }
+    return nullptr;
+}
+
 bool hasTerminalPunctuation(const std::string& text) {
-    static const std::regex terminalPunctuation(R"([.,!?。！？]$)");
-    return std::regex_search(text, terminalPunctuation);
+    return terminalPunctuationSuffix(text) != nullptr;
 }
 
 std::string removeTerminalPunctuation(std::string text) {
-    static const std::regex terminalPunctuation(R"([.,!?。！？]$)");
-    return std::regex_replace(std::move(text), terminalPunctuation, "");
+    if (const auto* punctuation = terminalPunctuationSuffix(text)) {
+        text.erase(text.size() - punctuation->size());
+    }
+    return text;
 }
 
 Evaluation evaluate(const Segment& segment, const std::string& normalized, const std::string& error) {
     if (!error.empty()) return {false, false, "mnn-error"};
     if (segment.expected.empty()) return {true, false, ""};
-    if (normalized == segment.expected) return {true, false, ""};
-    const bool missingTerminalPunctuation = hasTerminalPunctuation(segment.expected) &&
-                                           !hasTerminalPunctuation(normalized) &&
-                                           removeTerminalPunctuation(normalized) == removeTerminalPunctuation(segment.expected);
-    return {false, missingTerminalPunctuation,
-            missingTerminalPunctuation ? "missing-terminal-punctuation" : "transcript-mismatch"};
+    const bool actualHasTerminalPunctuation = hasTerminalPunctuation(normalized);
+    if (removeTerminalPunctuation(normalized) != removeTerminalPunctuation(segment.expected)) {
+        return {false, actualHasTerminalPunctuation, "transcript-mismatch"};
+    }
+    if (segment.terminalPunctuation == TerminalPunctuation::Required && !actualHasTerminalPunctuation) {
+        return {false, false, "missing-terminal-punctuation"};
+    }
+    if (segment.terminalPunctuation == TerminalPunctuation::Forbidden && actualHasTerminalPunctuation) {
+        return {false, true, "unexpected-terminal-punctuation"};
+    }
+    return {true, actualHasTerminalPunctuation, ""};
 }
 
 std::string json(const std::string& value) {
@@ -243,7 +283,7 @@ void writeResult(std::ostream& output, const Prompt& prompt, const TestCase& tes
            << ",\"raw\":" << json(raw)
            << ",\"normalized\":" << json(normalized)
            << ",\"matches_expected\":" << (evaluation.matches ? "true" : "false")
-           << ",\"missing_terminal_punctuation\":" << (evaluation.missingTerminalPunctuation ? "true" : "false")
+           << ",\"has_terminal_punctuation\":" << (evaluation.hasTerminalPunctuation ? "true" : "false")
            << ",\"failure\":" << json(evaluation.failure)
            << ",\"error\":" << json(error)
            << ",\"wall_us\":" << wallUs;
@@ -272,9 +312,12 @@ std::string joinedTranscript(const std::vector<std::string>& segments) {
 
 void writeCaseSummary(std::ostream& output, const Prompt& prompt, const TestCase& testCase,
                       const std::string& systemPrompt, const std::string& contextMessage,
-                      size_t repetition, const std::vector<std::string>& actualSegments) {
+                      size_t repetition, const std::vector<std::string>& actualSegments,
+                      const std::vector<Evaluation>& evaluations) {
     const auto expected = expectedTranscript(testCase);
     const auto actual = joinedTranscript(actualSegments);
+    const bool matchesSegments = std::all_of(evaluations.begin(), evaluations.end(),
+                                             [](const Evaluation& evaluation) { return evaluation.matches; });
     output << "{\"prompt_id\":" << json(prompt.id)
            << ",\"record_type\":\"case-summary\""
            << ",\"case_id\":" << json(testCase.id)
@@ -283,7 +326,7 @@ void writeCaseSummary(std::ostream& output, const Prompt& prompt, const TestCase
            << ",\"context_message\":" << json(contextMessage)
            << ",\"expected_concatenated\":" << json(expected)
            << ",\"normalized_concatenated\":" << json(actual)
-           << ",\"matches_concatenated\":" << (actual == expected ? "true" : "false")
+           << ",\"segments_match_expected\":" << (matchesSegments ? "true" : "false")
            << "}\n";
 }
 
@@ -306,6 +349,7 @@ void runPrompt(const Experiment& experiment, const Prompt& prompt, std::ostream&
             if (!engine->beginChatSession()) throw std::runtime_error("MNN could not begin chat session");
             ChatMessages messages{{"system", systemPrompt}, {"user", contextMessage}};
             std::vector<std::string> actualSegments;
+            std::vector<Evaluation> evaluations;
             for (size_t segmentIndex = 0; segmentIndex < testCase.segments.size(); ++segmentIndex) {
                 const auto& segment = testCase.segments[segmentIndex];
                 const auto started = std::chrono::steady_clock::now();
@@ -323,6 +367,7 @@ void runPrompt(const Experiment& experiment, const Prompt& prompt, std::ostream&
                 const auto normalized = normalize(raw.str());
                 const auto evaluation = evaluate(segment, normalized, error);
                 actualSegments.push_back(normalized);
+                evaluations.push_back(evaluation);
                 if (error.empty()) messages.emplace_back("assistant", normalized);
                 std::cerr << "MNN response: prompt_id=" << prompt.id << " case_id=" << testCase.id
                           << " repetition=" << repetition << " raw=" << raw.str()
@@ -330,7 +375,7 @@ void runPrompt(const Experiment& experiment, const Prompt& prompt, std::ostream&
                 writeResult(results, prompt, testCase, segment, systemPrompt, contextMessage, audioMessage,
                             repetition, segmentIndex + 1, raw.str(), normalized, evaluation, error, context, elapsed);
             }
-            writeCaseSummary(results, prompt, testCase, systemPrompt, contextMessage, repetition, actualSegments);
+            writeCaseSummary(results, prompt, testCase, systemPrompt, contextMessage, repetition, actualSegments, evaluations);
             engine->endChatSession();
         }
     }
