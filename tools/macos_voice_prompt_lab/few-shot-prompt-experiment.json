@@ -16,13 +16,13 @@
     }
   ],
   "cases": [
-    {"id": "zh-question", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-question.wav", "expected": "一加一等于几"}]},
-    {"id": "zh-statement", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-statement.wav", "expected": "今天天气真好"}]},
-    {"id": "zh-command", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-command.wav", "expected": "明天上午十点提醒我开会"}]},
-    {"id": "en-question", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-question.wav", "expected": "What is one plus one"}]},
-    {"id": "en-statement", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-statement.wav", "expected": "The weather is beautiful today"}]},
-    {"id": "en-command", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-command.wav", "expected": "Remind me to join the meeting at ten tomorrow morning"}]},
-    {"id": "zh-multiturn-context", "language": "zh_CN", "context": "我正在整理明天的安排", "hotwords": [], "segments": [{"audio": "fixtures/zh-multiturn-1.wav", "expected": "请提醒我下午三点开会"}, {"audio": "fixtures/zh-multiturn-2.wav", "expected": "然后给妈妈打电话"}, {"audio": "fixtures/zh-multiturn-3.wav", "expected": "天气怎么样"}]},
-    {"id": "en-multiturn-context", "language": "en_US", "context": "I am planning tomorrow", "hotwords": [], "segments": [{"audio": "fixtures/en-multiturn-1.wav", "expected": "Remind me to join the meeting at three this afternoon"}, {"audio": "fixtures/en-multiturn-2.wav", "expected": "Then call my mother"}, {"audio": "fixtures/en-multiturn-3.wav", "expected": "What will the weather be like"}]}
+    {"id": "zh-question", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-question.wav", "expected": "一加一等于几？"}]},
+    {"id": "zh-statement", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-statement.wav", "expected": "今天天气真好。"}]},
+    {"id": "zh-command", "language": "zh_CN", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/zh-command.wav", "expected": "明天上午十点提醒我开会。"}]},
+    {"id": "en-question", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-question.wav", "expected": "What is one plus one?"}]},
+    {"id": "en-statement", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-statement.wav", "expected": "The weather is beautiful today."}]},
+    {"id": "en-command", "language": "en_US", "context": "", "hotwords": [], "segments": [{"audio": "fixtures/en-command.wav", "expected": "Remind me to join the meeting at ten tomorrow morning."}]},
+    {"id": "zh-multiturn-context", "language": "zh_CN", "context": "我正在整理明天的安排", "hotwords": [], "segments": [{"audio": "fixtures/zh-multiturn-1.wav", "expected": "请提醒我下午三点开会。"}, {"audio": "fixtures/zh-multiturn-2.wav", "expected": "然后给妈妈打电话。"}, {"audio": "fixtures/zh-multiturn-3.wav", "expected": "天气怎么样？"}]},
+    {"id": "en-multiturn-context", "language": "en_US", "context": "I am planning tomorrow", "hotwords": [], "segments": [{"audio": "fixtures/en-multiturn-1.wav", "expected": "Remind me to join the meeting at three this afternoon."}, {"audio": "fixtures/en-multiturn-2.wav", "expected": "Then call my mother."}, {"audio": "fixtures/en-multiturn-3.wav", "expected": "What will the weather be like?"}]}
   ]
 }

@@ -49,7 +49,7 @@ struct Experiment {
 
 struct Evaluation {
     bool matches;
-    bool addedPunctuation;
+    bool missingTerminalPunctuation;
     std::string failure;
 };
 
@@ -188,17 +188,25 @@ std::string normalize(std::string text) {
     return text;
 }
 
-std::string removePunctuation(std::string text) {
-    static const std::regex punctuation(R"([.,!?;:，。！？；：、])");
-    return std::regex_replace(std::move(text), punctuation, "");
+bool hasTerminalPunctuation(const std::string& text) {
+    static const std::regex terminalPunctuation(R"([.,!?。！？]$)");
+    return std::regex_search(text, terminalPunctuation);
+}
+
+std::string removeTerminalPunctuation(std::string text) {
+    static const std::regex terminalPunctuation(R"([.,!?。！？]$)");
+    return std::regex_replace(std::move(text), terminalPunctuation, "");
 }
 
 Evaluation evaluate(const Segment& segment, const std::string& normalized, const std::string& error) {
     if (!error.empty()) return {false, false, "mnn-error"};
     if (segment.expected.empty()) return {true, false, ""};
     if (normalized == segment.expected) return {true, false, ""};
-    const bool addedPunctuation = removePunctuation(normalized) == removePunctuation(segment.expected);
-    return {false, addedPunctuation, addedPunctuation ? "added-punctuation" : "transcript-mismatch"};
+    const bool missingTerminalPunctuation = hasTerminalPunctuation(segment.expected) &&
+                                           !hasTerminalPunctuation(normalized) &&
+                                           removeTerminalPunctuation(normalized) == removeTerminalPunctuation(segment.expected);
+    return {false, missingTerminalPunctuation,
+            missingTerminalPunctuation ? "missing-terminal-punctuation" : "transcript-mismatch"};
 }
 
 std::string json(const std::string& value) {
@@ -223,6 +231,7 @@ void writeResult(std::ostream& output, const Prompt& prompt, const TestCase& tes
                  const std::string& error,
                  const LlmContext* context, long long wallUs) {
     output << "{\"prompt_id\":" << json(prompt.id)
+           << ",\"record_type\":\"segment\""
            << ",\"case_id\":" << json(testCase.id)
            << ",\"repetition\":" << repetition
            << ",\"segment_index\":" << segmentIndex
@@ -234,7 +243,7 @@ void writeResult(std::ostream& output, const Prompt& prompt, const TestCase& tes
            << ",\"raw\":" << json(raw)
            << ",\"normalized\":" << json(normalized)
            << ",\"matches_expected\":" << (evaluation.matches ? "true" : "false")
-           << ",\"added_punctuation\":" << (evaluation.addedPunctuation ? "true" : "false")
+           << ",\"missing_terminal_punctuation\":" << (evaluation.missingTerminalPunctuation ? "true" : "false")
            << ",\"failure\":" << json(evaluation.failure)
            << ",\"error\":" << json(error)
            << ",\"wall_us\":" << wallUs;
@@ -247,6 +256,35 @@ void writeResult(std::ostream& output, const Prompt& prompt, const TestCase& tes
                << ",\"generated_tokens\":" << context->gen_seq_len;
     }
     output << "}\n";
+}
+
+std::string expectedTranscript(const TestCase& testCase) {
+    std::ostringstream output;
+    for (const auto& segment : testCase.segments) output << segment.expected;
+    return output.str();
+}
+
+std::string joinedTranscript(const std::vector<std::string>& segments) {
+    std::ostringstream output;
+    for (const auto& segment : segments) output << segment;
+    return output.str();
+}
+
+void writeCaseSummary(std::ostream& output, const Prompt& prompt, const TestCase& testCase,
+                      const std::string& systemPrompt, const std::string& contextMessage,
+                      size_t repetition, const std::vector<std::string>& actualSegments) {
+    const auto expected = expectedTranscript(testCase);
+    const auto actual = joinedTranscript(actualSegments);
+    output << "{\"prompt_id\":" << json(prompt.id)
+           << ",\"record_type\":\"case-summary\""
+           << ",\"case_id\":" << json(testCase.id)
+           << ",\"repetition\":" << repetition
+           << ",\"system_prompt\":" << json(systemPrompt)
+           << ",\"context_message\":" << json(contextMessage)
+           << ",\"expected_concatenated\":" << json(expected)
+           << ",\"normalized_concatenated\":" << json(actual)
+           << ",\"matches_concatenated\":" << (actual == expected ? "true" : "false")
+           << "}\n";
 }
 
 void runPrompt(const Experiment& experiment, const Prompt& prompt, std::ostream& results) {
@@ -267,6 +305,7 @@ void runPrompt(const Experiment& experiment, const Prompt& prompt, std::ostream&
         for (size_t repetition = 1; repetition <= experiment.repetitions; ++repetition) {
             if (!engine->beginChatSession()) throw std::runtime_error("MNN could not begin chat session");
             ChatMessages messages{{"system", systemPrompt}, {"user", contextMessage}};
+            std::vector<std::string> actualSegments;
             for (size_t segmentIndex = 0; segmentIndex < testCase.segments.size(); ++segmentIndex) {
                 const auto& segment = testCase.segments[segmentIndex];
                 const auto started = std::chrono::steady_clock::now();
@@ -283,6 +322,7 @@ void runPrompt(const Experiment& experiment, const Prompt& prompt, std::ostream&
                 if (context && context->status == LlmStatus::INTERNAL_ERROR) error = "MNN internal error";
                 const auto normalized = normalize(raw.str());
                 const auto evaluation = evaluate(segment, normalized, error);
+                actualSegments.push_back(normalized);
                 if (error.empty()) messages.emplace_back("assistant", normalized);
                 std::cerr << "MNN response: prompt_id=" << prompt.id << " case_id=" << testCase.id
                           << " repetition=" << repetition << " raw=" << raw.str()
@@ -290,6 +330,7 @@ void runPrompt(const Experiment& experiment, const Prompt& prompt, std::ostream&
                 writeResult(results, prompt, testCase, segment, systemPrompt, contextMessage, audioMessage,
                             repetition, segmentIndex + 1, raw.str(), normalized, evaluation, error, context, elapsed);
             }
+            writeCaseSummary(results, prompt, testCase, systemPrompt, contextMessage, repetition, actualSegments);
             engine->endChatSession();
         }
     }
